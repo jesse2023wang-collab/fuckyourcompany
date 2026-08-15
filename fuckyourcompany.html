@@ -1,0 +1,2545 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark" class=""><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FuckYourCompany - 社保公积金欠缴计算器</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;family=Noto+Sans+SC:wght@300;400;500;600;700;900&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --brand-dark: #0f172a;
+  --brand-accent: #e11d48;
+  --brand-gold: #f59e0b;
+}
+* { font-family: 'Inter', 'Noto Sans SC', sans-serif; }
+body { background: #f1f5f9; }
+.glass { background: rgba(255,255,255,0.75); backdrop-filter: blur(12px); }
+.brand-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); }
+.hero-card { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #7c2d12 100%); }
+.accent-gradient { background: linear-gradient(135deg, #e11d48, #f59e0b); }
+.result-card { transition: all 0.3s ease; }
+.result-card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+.shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.danger-pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+input[type="month"], input[type="number"], select {
+  font-size: 14px;
+}
+.timeline-row { transition: all 0.2s ease; }
+.timeline-row:hover { background: #f8fafc; }
+.badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+.watermark-overlay {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  pointer-events: none; z-index: 9999;
+  text-align: center; padding: 4px;
+  font-size: 10px; color: rgba(0,0,0,0.15);
+  letter-spacing: 2px;
+}
+/* ---------- Export-only layout mode ----------
+   Activated right before html2canvas captures. We CANNOT rely on the
+   viewport / main max-w-6xl constraint that looks fine on screen: inside
+   the cloned iframe html2canvas renders against windowWidth that often
+   does not match the real page width, which causes the 10-column monthly
+   table + the 3-column basic settings row to compress horizontally and
+   the right-most content (end-date column, totals, numbers in general)
+   to get silently clipped. Setting a fixed wide width on html/body/main
+   AND on the export-root while additionally passing width/height based
+   on the *pre-flight scrollWidth/scrollHeight* eliminates the cut-off
+   on both the bottom ~1/4 of numbers and the right edge.
+   -------------------------------------------------------------- */
+.exporting main,
+.exporting #export-root {
+  max-width: none !important;
+  width: 1440px !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+  padding-bottom: 96px !important;
+}
+.exporting body,
+.exporting html {
+  width: 1440px !important;
+  min-width: 1440px !important;
+  overflow: visible !important;
+}
+.exporting #monthly-detail-scroll {
+  overflow: visible !important;
+  max-height: none !important;
+}
+/* Neutralize overflow-hidden on sections during export so the bottom
+   <p> tip text / last row of inputs is never clipped by the rounded
+   container's overflow clipping. */
+.exporting section {
+  overflow: visible !important;
+}
+</style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0px}.-right-1{right:-0.25rem}.-top-1{top:-0.25rem}.top-0{top:0px}.mx-auto{margin-left:auto;margin-right:auto}.mb-1{margin-bottom:0.25rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-0\.5{margin-top:0.125rem}.mt-1{margin-top:0.25rem}.mt-3{margin-top:0.75rem}.mt-4{margin-top:1rem}.block{display:block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-14{height:3.5rem}.h-2{height:0.5rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-6{height:1.5rem}.h-8{height:2rem}.max-h-96{max-height:24rem}.min-h-screen{min-height:100vh}.w-1\.5{width:0.375rem}.w-14{width:3.5rem}.w-2{width:0.5rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-8{width:2rem}.w-full{width:100%}.w-20{width:5rem}.w-28{width:7rem}.max-w-6xl{max-width:72rem}.flex-1{flex:1 1 0%}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.flex-wrap{flex-wrap:wrap}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-2 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.5rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-8 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(2rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(2rem * var(--tw-space-y-reverse))}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.rounded-2xl{border-radius:1rem}.rounded-3xl{border-radius:1.5rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-t-2{border-top-width:2px}.border-amber-200{--tw-border-opacity:1;border-color:rgb(253 230 138 / var(--tw-border-opacity, 1))}.border-rose-200{--tw-border-opacity:1;border-color:rgb(254 205 211 / var(--tw-border-opacity, 1))}.border-rose-500\/20{border-color:rgb(244 63 94 / 0.2)}.border-rose-500\/30{border-color:rgb(244 63 94 / 0.3)}.border-slate-100{--tw-border-opacity:1;border-color:rgb(241 245 249 / var(--tw-border-opacity, 1))}.border-slate-200{--tw-border-opacity:1;border-color:rgb(226 232 240 / var(--tw-border-opacity, 1))}.border-slate-300{--tw-border-opacity:1;border-color:rgb(203 213 225 / var(--tw-border-opacity, 1))}.border-slate-900{--tw-border-opacity:1;border-color:rgb(15 23 42 / var(--tw-border-opacity, 1))}.border-white\/10{border-color:rgb(255 255 255 / 0.1)}.border-white\/15{border-color:rgb(255 255 255 / 0.15)}.border-white\/20{border-color:rgb(255 255 255 / 0.2)}.border-white\/5{border-color:rgb(255 255 255 / 0.05)}.bg-amber-100{--tw-bg-opacity:1;background-color:rgb(254 243 199 / var(--tw-bg-opacity, 1))}.bg-amber-50{--tw-bg-opacity:1;background-color:rgb(255 251 235 / var(--tw-bg-opacity, 1))}.bg-amber-50\/50{background-color:rgb(255 251 235 / 0.5)}.bg-blue-100{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.bg-blue-50{--tw-bg-opacity:1;background-color:rgb(239 246 255 / var(--tw-bg-opacity, 1))}.bg-emerald-100{--tw-bg-opacity:1;background-color:rgb(209 250 229 / var(--tw-bg-opacity, 1))}.bg-emerald-400{--tw-bg-opacity:1;background-color:rgb(52 211 153 / var(--tw-bg-opacity, 1))}.bg-emerald-50{--tw-bg-opacity:1;background-color:rgb(236 253 245 / var(--tw-bg-opacity, 1))}.bg-emerald-600{--tw-bg-opacity:1;background-color:rgb(5 150 105 / var(--tw-bg-opacity, 1))}.bg-green-400{--tw-bg-opacity:1;background-color:rgb(74 222 128 / var(--tw-bg-opacity, 1))}.bg-purple-100{--tw-bg-opacity:1;background-color:rgb(243 232 255 / var(--tw-bg-opacity, 1))}.bg-purple-400{--tw-bg-opacity:1;background-color:rgb(192 132 252 / var(--tw-bg-opacity, 1))}.bg-purple-50{--tw-bg-opacity:1;background-color:rgb(250 245 255 / var(--tw-bg-opacity, 1))}.bg-purple-500\/\[0\.06\]{background-color:rgb(168 85 247 / 0.06)}.bg-rose-400{--tw-bg-opacity:1;background-color:rgb(251 113 133 / var(--tw-bg-opacity, 1))}.bg-rose-500\/20{background-color:rgb(244 63 94 / 0.2)}.bg-slate-50{--tw-bg-opacity:1;background-color:rgb(248 250 252 / var(--tw-bg-opacity, 1))}.bg-slate-800{--tw-bg-opacity:1;background-color:rgb(30 41 59 / var(--tw-bg-opacity, 1))}.bg-slate-800\/80{background-color:rgb(30 41 59 / 0.8)}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-white\/10{background-color:rgb(255 255 255 / 0.1)}.bg-white\/5{background-color:rgb(255 255 255 / 0.05)}.bg-white\/\[0\.03\]{background-color:rgb(255 255 255 / 0.03)}.bg-white\/\[0\.06\]{background-color:rgb(255 255 255 / 0.06)}.bg-gradient-to-br{background-image:linear-gradient(to bottom right, var(--tw-gradient-stops))}.from-rose-50{--tw-gradient-from:#fff1f2 var(--tw-gradient-from-position);--tw-gradient-to:rgb(255 241 242 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.from-rose-500\/20{--tw-gradient-from:rgb(244 63 94 / 0.2) var(--tw-gradient-from-position);--tw-gradient-to:rgb(244 63 94 / 0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from), var(--tw-gradient-to)}.to-orange-50{--tw-gradient-to:#fff7ed var(--tw-gradient-to-position)}.to-red-900\/30{--tw-gradient-to:rgb(127 29 29 / 0.3) var(--tw-gradient-to-position)}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-1{padding:0.25rem}.p-2{padding:0.5rem}.px-12{padding-left:3rem;padding-right:3rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-8{padding-left:2rem;padding-right:2rem}.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-2\.5{padding-top:0.625rem;padding-bottom:0.625rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-20{padding-bottom:5rem}.pt-2{padding-top:0.5rem}.text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-black{font-weight:900}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-0.025em}.tracking-wide{letter-spacing:0.025em}.tracking-wider{letter-spacing:0.05em}.tracking-widest{letter-spacing:0.1em}.text-amber-400{--tw-text-opacity:1;color:rgb(251 191 36 / var(--tw-text-opacity, 1))}.text-amber-500{--tw-text-opacity:1;color:rgb(245 158 11 / var(--tw-text-opacity, 1))}.text-amber-600{--tw-text-opacity:1;color:rgb(217 119 6 / var(--tw-text-opacity, 1))}.text-amber-700{--tw-text-opacity:1;color:rgb(180 83 9 / var(--tw-text-opacity, 1))}.text-blue-600{--tw-text-opacity:1;color:rgb(37 99 235 / var(--tw-text-opacity, 1))}.text-emerald-400{--tw-text-opacity:1;color:rgb(52 211 153 / var(--tw-text-opacity, 1))}.text-emerald-600{--tw-text-opacity:1;color:rgb(5 150 105 / var(--tw-text-opacity, 1))}.text-orange-400{--tw-text-opacity:1;color:rgb(251 146 60 / var(--tw-text-opacity, 1))}.text-orange-500{--tw-text-opacity:1;color:rgb(249 115 22 / var(--tw-text-opacity, 1))}.text-purple-300{--tw-text-opacity:1;color:rgb(216 180 254 / var(--tw-text-opacity, 1))}.text-purple-400{--tw-text-opacity:1;color:rgb(192 132 252 / var(--tw-text-opacity, 1))}.text-purple-400\/60{color:rgb(192 132 252 / 0.6)}.text-purple-600{--tw-text-opacity:1;color:rgb(147 51 234 / var(--tw-text-opacity, 1))}.text-rose-300{--tw-text-opacity:1;color:rgb(253 164 175 / var(--tw-text-opacity, 1))}.text-rose-400{--tw-text-opacity:1;color:rgb(251 113 133 / var(--tw-text-opacity, 1))}.text-rose-500{--tw-text-opacity:1;color:rgb(244 63 94 / var(--tw-text-opacity, 1))}.text-rose-600{--tw-text-opacity:1;color:rgb(225 29 72 / var(--tw-text-opacity, 1))}.text-slate-300{--tw-text-opacity:1;color:rgb(203 213 225 / var(--tw-text-opacity, 1))}.text-slate-400{--tw-text-opacity:1;color:rgb(148 163 184 / var(--tw-text-opacity, 1))}.text-slate-500{--tw-text-opacity:1;color:rgb(100 116 139 / var(--tw-text-opacity, 1))}.text-slate-600{--tw-text-opacity:1;color:rgb(71 85 105 / var(--tw-text-opacity, 1))}.text-slate-700{--tw-text-opacity:1;color:rgb(51 65 85 / var(--tw-text-opacity, 1))}.text-slate-800{--tw-text-opacity:1;color:rgb(30 41 59 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.duration-200{transition-duration:200ms}.hover\:-translate-y-0\.5:hover{--tw-translate-y:-0.125rem;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:bg-amber-100:hover{--tw-bg-opacity:1;background-color:rgb(254 243 199 / var(--tw-bg-opacity, 1))}.hover\:bg-amber-200:hover{--tw-bg-opacity:1;background-color:rgb(253 230 138 / var(--tw-bg-opacity, 1))}.hover\:bg-blue-100:hover{--tw-bg-opacity:1;background-color:rgb(219 234 254 / var(--tw-bg-opacity, 1))}.hover\:bg-emerald-100:hover{--tw-bg-opacity:1;background-color:rgb(209 250 229 / var(--tw-bg-opacity, 1))}.hover\:bg-emerald-500:hover{--tw-bg-opacity:1;background-color:rgb(16 185 129 / var(--tw-bg-opacity, 1))}.hover\:bg-purple-100:hover{--tw-bg-opacity:1;background-color:rgb(243 232 255 / var(--tw-bg-opacity, 1))}.hover\:bg-slate-700:hover{--tw-bg-opacity:1;background-color:rgb(51 65 85 / var(--tw-bg-opacity, 1))}.hover\:bg-white\/15:hover{background-color:rgb(255 255 255 / 0.15)}.hover\:text-rose-500:hover{--tw-text-opacity:1;color:rgb(244 63 94 / var(--tw-text-opacity, 1))}.hover\:shadow-xl:hover{--tw-shadow:0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.focus\:border-amber-400\/60:focus{border-color:rgb(251 191 36 / 0.6)}.focus\:border-emerald-400\/60:focus{border-color:rgb(52 211 153 / 0.6)}.focus\:border-orange-400\/60:focus{border-color:rgb(251 146 60 / 0.6)}.focus\:border-purple-400\/60:focus{border-color:rgb(192 132 252 / 0.6)}.focus\:border-rose-500:focus{--tw-border-opacity:1;border-color:rgb(244 63 94 / var(--tw-border-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-1:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}.focus\:ring-amber-400:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(251 191 36 / var(--tw-ring-opacity, 1))}.focus\:ring-amber-400\/30:focus{--tw-ring-color:rgb(251 191 36 / 0.3)}.focus\:ring-emerald-400\/30:focus{--tw-ring-color:rgb(52 211 153 / 0.3)}.focus\:ring-orange-400\/30:focus{--tw-ring-color:rgb(251 146 60 / 0.3)}.focus\:ring-purple-400\/30:focus{--tw-ring-color:rgb(192 132 252 / 0.3)}.focus\:ring-rose-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(244 63 94 / var(--tw-ring-opacity, 1))}.focus\:ring-blue-400:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(96 165 250 / var(--tw-ring-opacity, 1))}.focus\:ring-emerald-400:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(52 211 153 / var(--tw-ring-opacity, 1))}.focus\:ring-purple-400:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(192 132 252 / var(--tw-ring-opacity, 1))}@media (min-width: 768px){.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.md\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.md\:grid-cols-4{grid-template-columns:repeat(4, minmax(0, 1fr))}.md\:grid-cols-5{grid-template-columns:repeat(5, minmax(0, 1fr))}.md\:p-8{padding:2rem}.md\:text-2xl{font-size:1.5rem;line-height:2rem}}@media (min-width: 1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.lg\:grid-cols-6{grid-template-columns:repeat(6, minmax(0, 1fr))}}</style></head>
+<body class="min-h-screen pb-20">
+
+<!-- HEADER / BRANDING -->
+<header class="brand-gradient text-white shadow-2xl">
+  <div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+      <div class="flex items-center gap-4">
+        <!-- Logo Badge -->
+        <div class="relative">
+          <div class="w-14 h-14 rounded-2xl accent-gradient flex items-center justify-center shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+            </svg>
+          </div>
+          <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-900"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-black tracking-tight">FuckYourCompany</h1>
+            <span class="badge bg-rose-500/20 text-rose-300 border border-rose-500/30">V 0.0.1</span>
+          </div>
+          <p class="text-slate-400 text-sm mt-0.5 tracking-wide">社保公积金欠缴计算器 · 守护你的每一分钱</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-slate-400 text-xs">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+        <span class="font-medium tracking-wider">www.fuckyourcompany.com</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+  <!-- ========== SHANGHAI EXAMPLE CARD ========== -->
+  <section id="shanghai-example" class="fade-in">
+    <div class="hero-card rounded-3xl shadow-2xl overflow-hidden">
+      <div class="p-6 md:p-8">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-amber-400 text-lg">⚡</span>
+          <span class="text-amber-400 text-xs font-bold tracking-widest uppercase">上海实例对比</span>
+        </div>
+        <h2 class="text-white text-xl md:text-2xl font-bold mb-1">全额缴纳 vs 最低基数&nbsp;</h2>
+        <p class="text-slate-400 text-sm mb-6">修改下方参数，实时查看公司按最低基数给你少缴了多少</p>
+
+        <!-- Editable Input Fields -->
+        <div class="space-y-4 mb-6">
+          <!-- 月薪 - 最大最突出 -->
+          <div class="bg-white/5 rounded-xl p-4 border border-amber-400/30">
+            <label class="block text-amber-400 text-xs mb-1.5 font-bold tracking-wider uppercase">税前月薪</label>
+            <input type="number" id="ex-input-salary" value="15000" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/30 rounded-lg px-4 py-3 text-white font-mono text-2xl font-bold focus:outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/30 transition">
+          </div>
+          <!-- 全额基数 vs 最低基数 两栏对比 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- 左侧：全额缴纳 -->
+            <div class="bg-emerald-500/5 rounded-xl p-4 border border-emerald-500/20">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                <span class="text-emerald-400 text-xs font-bold tracking-wider">全额缴纳基数</span>
+              </div>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-slate-400 text-xs mb-1">社保基数</label>
+                  <input type="number" id="ex-input-si-full" value="15000" min="0" step="100" class="w-full bg-slate-800/80 border border-white/15 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/30 transition">
+                </div>
+                <div>
+                  <label class="block text-slate-400 text-xs mb-1">公积金基数</label>
+                  <input type="number" id="ex-input-fund-full" value="15000" min="0" step="100" class="w-full bg-slate-800/80 border border-white/15 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-emerald-400/60 focus:ring-1 focus:ring-emerald-400/30 transition">
+                </div>
+              </div>
+            </div>
+            <!-- 右侧：最低基数 -->
+            <div class="bg-orange-500/5 rounded-xl p-4 border border-orange-500/20">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-2 h-2 rounded-full bg-orange-400"></div>
+                <span class="text-orange-400 text-xs font-bold tracking-wider">最低缴纳基数</span>
+              </div>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-slate-400 text-xs mb-1">社保基数</label>
+                  <input type="number" id="ex-input-si-min" value="7460" min="0" step="100" class="w-full bg-slate-800/80 border border-white/15 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-orange-400/60 focus:ring-1 focus:ring-orange-400/30 transition">
+                </div>
+                <div>
+                  <label class="block text-slate-400 text-xs mb-1">公积金基数</label>
+                  <input type="number" id="ex-input-fund-min" value="2690" min="0" step="100" class="w-full bg-slate-800/80 border border-white/15 rounded-lg px-3 py-2 text-white font-mono text-base focus:outline-none focus:border-orange-400/60 focus:ring-1 focus:ring-orange-400/30 transition">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toggle Button -->
+        <div class="mb-4">
+          <button id="ex-detail-toggle" onclick="toggleExDetail()" class="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition">
+            <svg id="ex-detail-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            <span id="ex-detail-label">展开详细明细</span>
+          </button>
+        </div>
+
+        <!-- Detail Section (hidden by default) -->
+        <div id="ex-detail-section" class="hidden">
+
+        <!-- Section A: 五险明细 -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-1.5 h-5 rounded-full bg-emerald-400"></div>
+            <h3 class="text-white text-base font-bold">五险明细</h3>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-white/10">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-white/5 text-slate-400 text-xs">
+                  <th class="text-left px-4 py-3 font-medium">险种名称</th>
+                  <th class="text-center px-3 py-3 font-medium text-slate-300">费率(个人/公司)</th>
+                  <th class="text-right px-3 py-3 font-medium text-emerald-400">全额-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-emerald-400">全额-公司</th>
+                  <th class="text-right px-3 py-3 font-medium text-orange-400">最低-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-orange-400">最低-公司</th>
+                  <th class="text-right px-3 py-3 font-medium text-rose-400">差额-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-rose-400">差额-公司</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t border-white/5 bg-white/[0.03]">
+                  <td class="px-4 py-2.5 text-slate-300">养老保险</td>
+                  <td class="px-3 py-2.5 text-center text-slate-500 text-xs" id="ex-rate-pension">8%/16%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-pension-full-p">¥1,200.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-pension-full-e">¥2,400.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-pension-min-p">¥984.56</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-pension-min-e">¥1,969.12</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-pension-diff-p">¥215.44</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-pension-diff-e">¥430.88</td>
+                </tr>
+                <tr class="border-t border-white/5 bg-white/[0.06]">
+                  <td class="px-4 py-2.5 text-slate-300">医疗保险</td>
+                  <td class="px-3 py-2.5 text-center text-slate-500 text-xs" id="ex-rate-medical">2%/9.5%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-medical-full-p">¥300.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-medical-full-e">¥1,425.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-medical-min-p">¥246.14</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-medical-min-e">¥1,169.16</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-medical-diff-p">¥53.86</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-medical-diff-e">¥255.84</td>
+                </tr>
+                <tr class="border-t border-white/5 bg-white/[0.03]">
+                  <td class="px-4 py-2.5 text-slate-300">失业保险</td>
+                  <td class="px-3 py-2.5 text-center text-slate-500 text-xs" id="ex-rate-unemployment">0.5%/0.5%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-unemployment-full-p">¥75.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-unemployment-full-e">¥75.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-unemployment-min-p">¥61.54</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-unemployment-min-e">¥61.54</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-unemployment-diff-p">¥13.46</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-unemployment-diff-e">¥13.46</td>
+                </tr>
+                <tr class="border-t border-white/5 bg-white/[0.06]">
+                  <td class="px-4 py-2.5 text-slate-300">工伤保险</td>
+                  <td class="px-3 py-2.5 text-center text-slate-500 text-xs" id="ex-rate-injury">0%/0.26%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-injury-full-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-injury-full-e">¥39.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-injury-min-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-injury-min-e">¥32.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-injury-diff-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-injury-diff-e">¥7.00</td>
+                </tr>
+                <tr class="border-t border-white/5 bg-white/[0.03]">
+                  <td class="px-4 py-2.5 text-slate-300">生育保险</td>
+                  <td class="px-3 py-2.5 text-center text-slate-500 text-xs" id="ex-rate-maternity">0%/0%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-maternity-full-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-maternity-full-e">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-maternity-min-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-maternity-min-e">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-maternity-diff-p">¥0.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-maternity-diff-e">¥0.00</td>
+                </tr>
+                <!-- 五险小计 -->
+                <tr class="border-t-2 border-white/20 bg-white/10 font-bold">
+                  <td class="px-4 py-3 text-white" colspan="2">五险小计</td>
+                  <td class="px-3 py-3 text-right font-mono text-emerald-400" id="ex-si-full-p">¥1,575.00</td>
+                  <td class="px-3 py-3 text-right font-mono text-emerald-400" id="ex-si-full-e">¥3,939.00</td>
+                  <td class="px-3 py-3 text-right font-mono text-orange-400" id="ex-si-min-p">¥1,292.24</td>
+                  <td class="px-3 py-3 text-right font-mono text-orange-400" id="ex-si-min-e">¥3,231.82</td>
+                  <td class="px-3 py-3 text-right font-mono text-rose-400" id="ex-si-diff-p">¥282.76</td>
+                  <td class="px-3 py-3 text-right font-mono text-rose-400" id="ex-si-diff-e">¥707.18</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section B: 公积金明细 -->
+        <div class="mb-6">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-1.5 h-5 rounded-full bg-purple-400"></div>
+            <h3 class="text-white text-base font-bold">公积金明细</h3>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-white/10">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-white/5 text-slate-400 text-xs">
+                  <th class="text-left px-4 py-3 font-medium">险种名称</th>
+                  <th class="text-center px-3 py-3 font-medium text-slate-300">费率(个人/公司)</th>
+                  <th class="text-right px-3 py-3 font-medium text-emerald-400">全额-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-emerald-400">全额-公司</th>
+                  <th class="text-right px-3 py-3 font-medium text-orange-400">最低-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-orange-400">最低-公司</th>
+                  <th class="text-right px-3 py-3 font-medium text-rose-400">差额-个人</th>
+                  <th class="text-right px-3 py-3 font-medium text-rose-400">差额-公司</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t border-white/5 bg-purple-500/[0.06]">
+                  <td class="px-4 py-2.5 text-purple-300 font-medium">公积金</td>
+                  <td class="px-3 py-2.5 text-center text-purple-400/60 text-xs" id="ex-rate-fund">7%/7%</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-fund-full-p">¥1,050.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-white" id="ex-fund-full-e">¥1,050.00</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-fund-min-p">¥188.30</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-slate-400" id="ex-fund-min-e">¥188.30</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-fund-diff-p">¥861.70</td>
+                  <td class="px-3 py-2.5 text-right font-mono text-rose-400" id="ex-fund-diff-e">¥861.70</td>
+                </tr>
+                <!-- 公积金小计 -->
+                <tr class="border-t-2 border-white/20 bg-white/10 font-bold">
+                  <td class="px-4 py-3 text-white" colspan="2">公积金小计</td>
+                  <td class="px-3 py-3 text-right font-mono text-emerald-400" id="ex-fund-total-full-p">¥1,050.00</td>
+                  <td class="px-3 py-3 text-right font-mono text-emerald-400" id="ex-fund-total-full-e">¥1,050.00</td>
+                  <td class="px-3 py-3 text-right font-mono text-orange-400" id="ex-fund-total-min-p">¥188.30</td>
+                  <td class="px-3 py-3 text-right font-mono text-orange-400" id="ex-fund-total-min-e">¥188.30</td>
+                  <td class="px-3 py-3 text-right font-mono text-rose-400" id="ex-fund-total-diff-p">¥861.70</td>
+                  <td class="px-3 py-3 text-right font-mono text-rose-400" id="ex-fund-total-diff-e">¥861.70</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+            <h4 class="text-slate-300 text-sm font-bold mb-3 text-center">少缴构成</h4>
+            <canvas id="ex-bar-chart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+          </div>
+          <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+            <h4 class="text-slate-300 text-sm font-bold mb-3 text-center">每月差额构成</h4>
+            <canvas id="ex-doughnut-chart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+          </div>
+        </div>
+
+        </div><!-- end ex-detail-section -->
+
+        <!-- Summary Cards: 社保少缴 / 公积金少缴 / 合计少缴 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <!-- 社保少缴 -->
+          <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+              <span class="text-emerald-400 text-xs font-bold tracking-wider">社保少缴</span>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between text-slate-300"><span>个人部分</span><span id="ex-si-diff-p-card" class="font-mono font-semibold text-rose-400">¥282.76</span></div>
+              <div class="flex justify-between text-slate-300"><span>公司部分</span><span id="ex-si-diff-e-card" class="font-mono font-semibold text-rose-400">¥707.18</span></div>
+              <div class="border-t border-white/10 pt-2 flex justify-between">
+                <span class="text-slate-300 font-medium">合计</span>
+                <span id="ex-si-diff-total" class="font-mono font-bold text-rose-400">¥989.94</span>
+              </div>
+            </div>
+          </div>
+          <!-- 公积金少缴 -->
+          <div class="bg-white/10 rounded-2xl p-5 border border-white/10">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-2 h-2 rounded-full bg-purple-400"></div>
+              <span class="text-purple-400 text-xs font-bold tracking-wider">公积金少缴</span>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between text-slate-300"><span>个人部分</span><span id="ex-fund-diff-p-card" class="font-mono font-semibold text-rose-400">¥861.70</span></div>
+              <div class="flex justify-between text-slate-300"><span>公司部分</span><span id="ex-fund-diff-e-card" class="font-mono font-semibold text-rose-400">¥861.70</span></div>
+              <div class="border-t border-white/10 pt-2 flex justify-between">
+                <span class="text-slate-300 font-medium">合计</span>
+                <span id="ex-fund-diff-total" class="font-mono font-bold text-rose-400">¥1,723.40</span>
+              </div>
+            </div>
+          </div>
+          <!-- 合计少缴 -->
+          <div class="bg-gradient-to-br from-rose-500/20 to-red-900/30 rounded-2xl p-5 border border-rose-500/30 relative overflow-hidden">
+            <div class="shimmer absolute inset-0 rounded-2xl"></div>
+            <div class="relative">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-2 h-2 rounded-full bg-rose-400 danger-pulse"></div>
+                <span class="text-rose-400 text-xs font-bold tracking-wider">合计少缴</span>
+              </div>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between text-slate-300"><span>个人少缴</span><span id="ex-total-diff-p-card" class="font-mono font-bold text-rose-400">¥1,144.46</span></div>
+                <div class="flex justify-between text-slate-300"><span>公司少缴</span><span id="ex-total-diff-e-card" class="font-mono font-bold text-rose-400">¥1,568.88</span></div>
+                <div class="border-t border-rose-500/20 pt-2 flex justify-between">
+                  <span class="text-white font-bold text-lg">合计差额</span>
+                  <span id="ex-total-diff-all" class="font-mono font-black text-3xl text-rose-400">¥2,713.34</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-slate-500 text-xs">* 以上基于 2025.7-2026.6 上海社保数据：社保基数下限 ¥7,460、上限 ¥37,302，公积金最低基数 ¥2,690，默认比例 7%（个人/公司各7%）。所有参数均可编辑，修改后自动重新计算。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== EXPORT ROOT START ========== -->
+  <div id="export-root" class="space-y-8">
+
+  <!-- ========== BASIC SETTINGS ========== -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 fade-in">
+    <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+      <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+      基本设置
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">选择城市</label>
+        <select id="city-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none">
+          <option value="上海">上海</option>
+          <option value="北京">北京</option>
+          <option value="广州">广州</option>
+          <option value="深圳">深圳</option>
+          <option value="杭州">杭州</option>
+          <option value="成都">成都</option>
+          <option value="南京">南京</option>
+          <option value="武汉">武汉</option>
+          <option value="自定义">自定义</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">入职日期</label>
+        <input type="month" id="start-date-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">计算结束日期</label>
+        <input type="month" id="end-date-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none">
+      </div>
+    </div>
+    <p class="text-xs text-slate-400 mt-3 leading-relaxed">
+      <span class="text-amber-500 font-medium">提示：</span>上海入离职当月不足一个月是否需要缴纳社保和公积金存在争议。本工具默认按全月计算（即入职/离职当月也计为完整缴纳月），如实际情况为未缴纳，请手动删除该月记录。
+    </p>
+
+    <div class="mt-3 flex flex-wrap items-center gap-3">
+      <label class="text-xs font-medium text-slate-600 whitespace-nowrap">查看范围：</label>
+      <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+        <button onclick="setViewScope('all')" id="scope-all" class="px-3 py-1.5 font-medium transition bg-slate-700 text-white whitespace-nowrap">全部</button>
+        <button onclick="setViewScope('si')" id="scope-si" class="px-3 py-1.5 font-medium transition bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap">仅社保</button>
+        <button onclick="setViewScope('fund')" id="scope-fund" class="px-3 py-1.5 font-medium transition bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap">仅公积金</button>
+      </div>
+    </div>
+
+    <!-- Custom Rates Panel (hidden by default) -->
+    <div id="custom-rates-panel" class="hidden mt-4 border border-amber-200 bg-amber-50/50 rounded-xl p-4 space-y-4">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+          自定义费率设置
+        </h4>
+        <button id="copy-city-rates-btn" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-200 font-medium transition">从当前城市复制费率</button>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">养老保险 - 个人(%)</label>
+          <input type="number" id="cr-pension_p" value="8" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">养老保险 - 公司(%)</label>
+          <input type="number" id="cr-pension_e" value="16" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">医疗保险 - 个人(%)</label>
+          <input type="number" id="cr-medical_p" value="2" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">医疗保险 - 公司(%)</label>
+          <input type="number" id="cr-medical_e" value="9.5" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">失业保险 - 个人(%)</label>
+          <input type="number" id="cr-unemployment_p" value="0.5" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">失业保险 - 公司(%)</label>
+          <input type="number" id="cr-unemployment_e" value="0.5" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">工伤保险 - 个人(%)</label>
+          <input type="number" id="cr-injury_p" value="0" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">工伤保险 - 公司(%)</label>
+          <input type="number" id="cr-injury_e" value="0.26" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">生育保险 - 个人(%)</label>
+          <input type="number" id="cr-maternity_p" value="0" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">生育保险 - 公司(%)</label>
+          <input type="number" id="cr-maternity_e" value="0" step="0.1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">社保基数下限</label>
+          <input type="number" id="cr-lower" value="12307" step="1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">社保基数上限</label>
+          <input type="number" id="cr-upper" value="36921" step="1" min="0" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== INPUT SECTIONS ========== -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Salary Timeline -->
+    <section id="section-salary" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 fade-in overflow-hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black">薪</span>
+          工资记录
+        </h3>
+        <button onclick="addSalaryRow()" class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-medium transition whitespace-nowrap">+ 添加</button>
+      </div>
+      <div id="salary-timeline" class="space-y-2"></div>
+      <p class="text-xs text-slate-400 mt-3">填写每个时期的税前月薪，系统自动按时间排序</p>
+    </section>
+
+    <!-- Social Insurance Base Timeline -->
+    <section id="section-si" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 fade-in overflow-hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-black">社</span>
+          社保基数
+        </h3>
+        <div class="flex gap-2">
+          <button onclick="autoFillMinBase()" class="text-xs bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg hover:bg-amber-100 font-medium transition whitespace-nowrap">一键填充最低基数</button>
+          <button onclick="addSIBaseRow()" class="text-xs bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg hover:bg-emerald-100 font-medium transition whitespace-nowrap">+ 添加</button>
+        </div>
+      </div>
+      <div id="si-base-timeline" class="space-y-2"></div>
+      <p class="text-xs text-slate-400 mt-3">实际缴纳基数，低于下限按下限算，高于上限按上限算</p>
+    </section>
+
+    <!-- Housing Fund Base Timeline -->
+    <section id="section-fund" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 fade-in overflow-hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-black">公</span>
+          公积金基数
+        </h3>
+        <button onclick="addFundBaseRow()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-100 font-medium transition whitespace-nowrap">+ 添加</button>
+      </div>
+      <div id="fund-base-timeline" class="space-y-2"></div>
+      <p class="text-xs text-slate-400 mt-3">公积金缴纳基数和比例（可与社保基数不同）</p>
+    </section>
+  </div>
+
+  <!-- ========== CALCULATE BUTTON ========== -->
+  <div class="text-center space-y-3">
+    <button onclick="calculate()" class="accent-gradient text-white px-12 py-4 rounded-2xl text-lg font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 tracking-wide">
+      🔍 计算欠缴金额
+    </button>
+  </div>
+
+  <!-- ========== CHARTS (shown after calculation) ========== -->
+  <section id="charts-section" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 fade-in">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h3 class="font-bold text-slate-800 mb-4">总缴对比</h3>
+      <canvas id="barChart"></canvas>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h3 class="font-bold text-slate-800 mb-4">月度差额趋势</h3>
+      <canvas id="lineChart"></canvas>
+    </div>
+  </section>
+
+  <!-- ========== RESULTS SECTION ========== -->
+  <section id="results-section" class="hidden space-y-8 fade-in">
+    <div id="results-content">
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="result-card bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center">
+          <p class="text-sm text-slate-500 mb-1">个人少缴总额</p>
+          <p id="res-personal-total" class="text-3xl font-black text-rose-500">¥0</p>
+          <p class="text-xs text-slate-400 mt-1">应从工资中扣除但未扣的部分</p>
+        </div>
+        <div class="result-card bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center">
+          <p class="text-sm text-slate-500 mb-1">公司少缴总额</p>
+          <p id="res-employer-total" class="text-3xl font-black text-orange-500">¥0</p>
+          <p class="text-xs text-slate-400 mt-1">公司应承担但未承担的部分</p>
+        </div>
+        <div class="result-card bg-gradient-to-br from-rose-50 to-orange-50 rounded-2xl shadow-sm border border-rose-200 p-6 text-center">
+          <p class="text-sm text-slate-500 mb-1">欠缴总计</p>
+          <p id="res-combined-total" class="text-4xl font-black text-rose-600">¥0</p>
+          <p class="text-xs text-slate-400 mt-1">个人 + 公司欠缴总金额</p>
+        </div>
+      </div>
+
+      <!-- Comparison Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-slate-100">
+          <h3 class="font-bold text-slate-800">分类汇总对比</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="text-left px-6 py-3 text-slate-500 font-medium">险种</th>
+                <th class="text-right px-4 py-3 text-slate-500 font-medium">应缴（个人）</th>
+                <th class="text-right px-4 py-3 text-slate-500 font-medium">实缴（个人）</th>
+                <th class="text-right px-4 py-3 text-rose-500 font-medium">差额（个人）</th>
+                <th class="text-right px-4 py-3 text-slate-500 font-medium">应缴（公司）</th>
+                <th class="text-right px-4 py-3 text-slate-500 font-medium">实缴（公司）</th>
+                <th class="text-right px-4 py-3 text-rose-500 font-medium">差额（公司）</th>
+              </tr>
+            </thead>
+            <tbody id="summary-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Monthly Detail Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-bold text-slate-800">逐月明细</h3>
+          <span id="month-count" class="text-xs text-slate-400"></span>
+        </div>
+        <div id="monthly-detail-scroll" class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="text-left px-4 py-2 text-slate-500">月份 / 险种</th>
+                <th class="text-right px-3 py-2 text-slate-500">工资</th>
+                <th class="text-right px-3 py-2 text-slate-500">应缴基数</th>
+                <th class="text-right px-3 py-2 text-slate-500">实缴基数</th>
+                <th class="text-right px-3 py-2 text-slate-500">应缴(个人)</th>
+                <th class="text-right px-3 py-2 text-slate-500">实缴(个人)</th>
+                <th class="text-right px-3 py-2 text-rose-500">差额(个人)</th>
+                <th class="text-right px-3 py-2 text-slate-500">应缴(公司)</th>
+                <th class="text-right px-3 py-2 text-slate-500">实缴(公司)</th>
+                <th class="text-right px-3 py-2 text-rose-500">差额(公司)</th>
+              </tr>
+            </thead>
+            <tbody id="monthly-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="flex flex-wrap gap-4 justify-center">
+      <button onclick="exportPDF()" class="bg-slate-800 text-white px-8 py-3 rounded-xl font-semibold hover:bg-slate-700 transition flex items-center gap-2 shadow">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        导出 PDF
+      </button>
+      <button onclick="exportJPG()" class="bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-emerald-500 transition flex items-center gap-2 shadow">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        导出图片
+      </button>
+      <button onclick="savePage()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-500 transition flex items-center gap-2 shadow">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+        保存网页
+      </button>
+    </div>
+  </section>
+
+  </div>
+  <!-- ========== EXPORT ROOT END ========== -->
+
+</main>
+
+<!-- Footer -->
+<footer class="text-center py-8 text-slate-400 text-xs space-y-1">
+  <p class="font-medium tracking-wider">FuckYourCompany · www.fuckyourcompany.com</p>
+  <p>数据仅供参考，具体以当地社保局核定为准</p>
+</footer>
+
+<script>
+// ============================================================
+// CITY DATA
+// ============================================================
+const CITY_DATA = {
+  '上海': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 9.5, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 11396, upper: 34188 },
+      { from: '2023-07', to: '2024-06', lower: 12183, upper: 36549 },
+      { from: '2024-07', to: '2025-06', lower: 12307, upper: 36921 },
+      { from: '2025-07', to: '2026-06', lower: 7460, upper: 37302 },
+    ],
+    adjMonth: '7月'
+  },
+  '北京': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 9.8, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.8, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 5869, upper: 31884 },
+      { from: '2023-07', to: '2024-06', lower: 6326, upper: 33891 },
+      { from: '2024-07', to: '2025-06', lower: 6821, upper: 35283 },
+    ],
+    adjMonth: '7月'
+  },
+  '广州': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 5.5, unemployment_p: 0.2, unemployment_e: 0.8, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.45, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 5284, upper: 26421 },
+      { from: '2023-07', to: '2024-06', lower: 5500, upper: 27501 },
+      { from: '2024-07', to: '2025-06', lower: 5500, upper: 27501 },
+    ],
+    adjMonth: '7月'
+  },
+  '深圳': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 5, unemployment_p: 0.3, unemployment_e: 0.7, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.45, fund_p: 5, fund_e: 5 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 2360, upper: 34860 },
+      { from: '2023-07', to: '2024-06', lower: 3488, upper: 34860 },
+      { from: '2024-07', to: '2025-06', lower: 3488, upper: 34860 },
+    ],
+    adjMonth: '7月'
+  },
+  '杭州': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 9.5, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 4462, upper: 22311 },
+      { from: '2023-07', to: '2024-06', lower: 4812, upper: 24060 },
+      { from: '2024-07', to: '2025-06', lower: 4812, upper: 24060 },
+    ],
+    adjMonth: '7月'
+  },
+  '成都': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 7.5, unemployment_p: 0.4, unemployment_e: 0.6, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.8, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 4246, upper: 21228 },
+      { from: '2023-07', to: '2024-06', lower: 4511, upper: 22555 },
+      { from: '2024-07', to: '2025-06', lower: 4655, upper: 23275 },
+    ],
+    adjMonth: '7月'
+  },
+  '南京': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 8, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.8, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 4250, upper: 21821 },
+      { from: '2023-07', to: '2024-06', lower: 4494, upper: 24042 },
+      { from: '2024-07', to: '2025-06', lower: 4494, upper: 24042 },
+    ],
+    adjMonth: '7月'
+  },
+  '武汉': {
+    rates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 8, unemployment_p: 0.3, unemployment_e: 0.7, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0.7, fund_p: 7, fund_e: 7 },
+    bases: [
+      { from: '2022-07', to: '2023-06', lower: 4077, upper: 20385 },
+      { from: '2023-07', to: '2024-06', lower: 4200, upper: 21000 },
+      { from: '2024-07', to: '2025-06', lower: 4200, upper: 21000 },
+    ],
+    adjMonth: '7月'
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  city: '上海',
+  fundRate: 7,
+  startDate: '',   // set in init
+  endDate: '',     // set in init
+  salaries: [],       // [{date:'2024-01', amount:15000}]
+  siBases: [],        // [{date:'2024-01', amount:12307}]
+  fundBases: [],      // [{date:'2024-01', amount:12307, rate:7}]
+  customRates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 9.5, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0, fund_p: 7, fund_e: 7 },
+  customLimits: { lower: 7460, upper: 37302 },
+  lastPresetCity: '上海',
+  autoGenerated: false,
+  viewScope: 'all', // 'all' | 'si' | 'fund'
+};
+
+// Default fund minimum bases per city
+const FUND_MIN_BASES = {
+  '上海': 2690, '北京': 2400, '广州': 2640, '深圳': 2360,
+  '杭州': 2490, '成都': 2100, '南京': 2280, '武汉': 2260,
+};
+
+let barChartInstance = null;
+let lineChartInstance = null;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmt(n) { return '¥' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function fmtNum(n) { return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+function monthDiff(a, b) {
+  const [ay, am] = a.split('-').map(Number);
+  const [by, bm] = b.split('-').map(Number);
+  return (by - ay) * 12 + (bm - am);
+}
+
+function addMonths(m, n) {
+  let [y, mo] = m.split('-').map(Number);
+  mo += n;
+  while (mo > 12) { mo -= 12; y++; }
+  while (mo < 1) { mo += 12; y--; }
+  return `${y}-${String(mo).padStart(2, '0')}`;
+}
+
+function getBaseForMonth(bases, month) {
+  // Find which base record applies for the given month
+  // bases sorted by date descending
+  let result = null;
+  for (const b of bases) {
+    if (month >= b.date) {
+      result = b;
+      break;
+    }
+  }
+  // If no record has date <= month (all records are AFTER month),
+  // fall back to the OLDEST record (so a single record always covers all months)
+  if (result === null && bases.length > 0) {
+    result = bases[bases.length - 1];
+  }
+  return result;
+}
+
+function getCityBaseLimits(city, month) {
+  if (city === '自定义') {
+    return { lower: state.customLimits.lower, upper: state.customLimits.upper };
+  }
+  const cityData = CITY_DATA[city];
+  if (!cityData) return { lower: 0, upper: 999999 };
+  for (const b of cityData.bases) {
+    if (month >= b.from && month <= b.to) {
+      return { lower: b.lower, upper: b.upper };
+    }
+  }
+  // If no match, use the latest
+  const latest = cityData.bases[cityData.bases.length - 1];
+  return { lower: latest.lower, upper: latest.upper };
+}
+
+function getCurrentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// ============================================================
+// TIMELINE ROW MANAGEMENT
+// ============================================================
+let rowId = 0;
+
+// Sort timeline container children ASCENDING by the first month input (oldest first)
+function sortTimelineContainer(container) {
+  if (!container) return;
+  const children = Array.from(container.children);
+  children.sort((a, b) => {
+    const da = (a.querySelector('input[type="month"]')?.value) || '';
+    const db = (b.querySelector('input[type="month"]')?.value) || '';
+    return da.localeCompare(db);
+  });
+  for (const c of children) container.appendChild(c);
+}
+
+function addSalaryRow(date, amount, skipSort, skipSave) {
+  const id = ++rowId;
+  const container = document.getElementById('salary-timeline');
+  const div = document.createElement('div');
+  div.className = 'timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0';
+  div.dataset.id = id;
+  div.innerHTML = `
+    <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+    <input type="number" value="${amount || ''}" placeholder="税前月薪" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none" min="0">
+    <button onclick="this.parentElement.remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+    </button>
+  `;
+  container.appendChild(div);
+  div.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+    saveState();
+    sortTimelineContainer(container);
+  }));
+  if (!skipSort) sortTimelineContainer(container);
+  if (!skipSave) saveState();
+}
+
+function addSIBaseRow(date, amount, rates, skipSort, skipSave) {
+  const id = ++rowId;
+  const container = document.getElementById('si-base-timeline');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'si-base-wrapper';
+  wrapper.dataset.id = id;
+
+  const r = rates || {};
+  // Get current city default rates for comparison
+  const cityRates = (state.city !== '自定义' && CITY_DATA[state.city]) ? CITY_DATA[state.city].rates : state.customRates;
+  const rateFields = [
+    { key: 'pension_p', label: '养老个人%', defaultKey: 'pension_p' },
+    { key: 'pension_e', label: '养老公司%', defaultKey: 'pension_e' },
+    { key: 'medical_p', label: '医疗个人%', defaultKey: 'medical_p' },
+    { key: 'medical_e', label: '医疗公司%', defaultKey: 'medical_e' },
+    { key: 'unemployment_p', label: '失业个人%', defaultKey: 'unemployment_p' },
+    { key: 'unemployment_e', label: '失业公司%', defaultKey: 'unemployment_e' },
+    { key: 'injury_p', label: '工伤个人%', defaultKey: 'injury_p' },
+    { key: 'injury_e', label: '工伤公司%', defaultKey: 'injury_e' },
+  ];
+
+  const rateInputsHTML = rateFields.map(f => {
+    const defaultRate = cityRates ? cityRates[f.defaultKey] : null;
+    const hint = defaultRate !== null && defaultRate !== undefined ? `<span class="si-rate-hint text-[9px] text-slate-400">最低 ${defaultRate}%</span>` : '';
+    return `<div style="min-width:90px" class="si-rate-field" data-default="${defaultRate !== null ? defaultRate : ''}">
+      <label class="block text-[10px] text-slate-400 mb-0.5">${f.label}</label>
+      <input type="number" data-rate-key="${f.key}" value="${r[f.key] !== undefined ? r[f.key] : ''}" placeholder="默认${defaultRate !== null ? defaultRate : ''}" step="0.1" min="0" class="w-full border border-slate-200 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-emerald-400 outline-none">
+      ${hint}
+    </div>`;
+  }).join('');
+
+  wrapper.innerHTML = `
+    <div class="timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0">
+      <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none">
+      <input type="number" value="${amount || ''}" placeholder="社保基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none" min="0">
+      <button class="shrink-0 si-rate-toggle text-slate-300 hover:text-emerald-500 transition px-2 py-1 rounded border border-slate-200 hover:border-emerald-300 text-[10px] leading-none flex items-center gap-1 whitespace-nowrap" type="button"><span>⚙</span><span class="text-slate-400 hover:text-emerald-500">调整各险缴费费率</span></button>
+      <button onclick="this.closest('.si-base-wrapper').remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </button>
+    </div>
+    <div class="si-rate-panel hidden mt-1 ml-2 p-2 bg-slate-50 rounded-lg border border-slate-100">
+      <div class="flex flex-wrap gap-2">${rateInputsHTML}</div>
+      <p class="text-[10px] text-slate-400 mt-1">留空使用城市默认费率，输入值会显示与最低要求的对比</p>
+    </div>
+  `;
+
+  container.appendChild(wrapper);
+
+  // Toggle rate panel
+  const toggleBtn = wrapper.querySelector('.si-rate-toggle');
+  const ratePanel = wrapper.querySelector('.si-rate-panel');
+  toggleBtn.addEventListener('click', () => {
+    ratePanel.classList.toggle('hidden');
+  });
+
+  // Update rate hints when value changes to show comparison
+  wrapper.querySelectorAll('.si-rate-field').forEach(field => {
+    const inp = field.querySelector('input[data-rate-key]');
+    const hint = field.querySelector('.si-rate-hint');
+    const defaultVal = field.dataset.default;
+    if (inp && hint && defaultVal !== '') {
+      inp.addEventListener('input', () => {
+        const val = parseFloat(inp.value);
+        const def = parseFloat(defaultVal);
+        if (!isNaN(val) && val !== def) {
+          const diff = +(val - def).toFixed(2);
+          const sign = diff > 0 ? '+' : '';
+          hint.textContent = `最低 ${def}% → ${val}% (${sign}${diff}%)`;
+          hint.className = 'si-rate-hint text-[9px] ' + (diff > 0 ? 'text-amber-600 font-medium' : diff < 0 ? 'text-rose-500 font-medium' : 'text-slate-400');
+        } else {
+          hint.textContent = `最低 ${defaultVal}%`;
+          hint.className = 'si-rate-hint text-[9px] text-slate-400';
+        }
+      });
+    }
+  });
+
+  wrapper.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+    saveState();
+    sortTimelineContainer(container);
+  }));
+  if (!skipSort) sortTimelineContainer(container);
+  if (!skipSave) saveState();
+}
+
+function addFundBaseRow(date, amount, rate, skipSort, skipSave) {
+  const id = ++rowId;
+  const container = document.getElementById('fund-base-timeline');
+  const div = document.createElement('div');
+  div.className = 'timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0';
+  div.dataset.id = id;
+  div.innerHTML = `
+    <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none">
+    <input type="number" value="${amount || ''}" placeholder="公积金基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none" min="0">
+    <select class="shrink-0 w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none">
+      ${[5,6,7,8,9,10,11,12].map(r => `<option value="${r}" ${(rate||state.fundRate)==r?'selected':''}>${r}%</option>`).join('')}
+    </select>
+    <button onclick="this.parentElement.remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+    </button>
+  `;
+  container.appendChild(div);
+  div.querySelectorAll('input, select').forEach(inp => inp.addEventListener('change', () => {
+    saveState();
+    sortTimelineContainer(container);
+  }));
+  if (!skipSort) sortTimelineContainer(container);
+  if (!skipSave) saveState();
+}
+
+function autoFillMinBase() {
+  const city = state.city;
+  const cityData = CITY_DATA[city];
+  if (!cityData) return;
+  // Clear existing
+  document.getElementById('si-base-timeline').innerHTML = '';
+  // Add one row per base period
+  for (const b of cityData.bases) {
+    addSIBaseRow(b.from, b.lower, undefined, true, true);
+  }
+  sortTimelineContainer(document.getElementById('si-base-timeline'));
+  saveState();
+}
+
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+function readState() {
+  // Read from UI
+  state.city = document.getElementById('city-select').value;
+  // fundRate is kept in state (no global selector anymore)
+  state.startDate = document.getElementById('start-date-select').value || state.startDate;
+  state.endDate = document.getElementById('end-date-select').value || state.endDate;
+
+  // Read custom rates from UI inputs when in custom mode
+  if (state.city === '自定义') {
+    readCustomRatesFromUI();
+  }
+
+  state.salaries = [];
+  document.querySelectorAll('#salary-timeline .timeline-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const date = inputs[0].value;
+    const amount = parseFloat(inputs[1].value) || 0;
+    if (date && amount > 0) state.salaries.push({ date, amount });
+  });
+
+  state.siBases = [];
+  document.querySelectorAll('#si-base-timeline .si-base-wrapper').forEach(wrapper => {
+    const row = wrapper.querySelector('.timeline-row');
+    if (!row) return;
+    const inputs = row.querySelectorAll('input');
+    const date = inputs[0].value;
+    const amount = parseFloat(inputs[1].value) || 0;
+    if (date && amount > 0) {
+      const rates = {};
+      let hasRates = false;
+      wrapper.querySelectorAll('.si-rate-panel input[data-rate-key]').forEach(inp => {
+        const key = inp.dataset.rateKey;
+        const val = parseFloat(inp.value);
+        if (!isNaN(val) && val !== '') {
+          rates[key] = val;
+          hasRates = true;
+        }
+      });
+      const rec = { date, amount };
+      if (hasRates) rec.rates = rates;
+      state.siBases.push(rec);
+    }
+  });
+
+  state.fundBases = [];
+  document.querySelectorAll('#fund-base-timeline .timeline-row').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const select = row.querySelector('select');
+    const date = inputs[0].value;
+    const amount = parseFloat(inputs[1].value) || 0;
+    const rate = parseFloat(select?.value) || state.fundRate;
+    if (date && amount > 0) state.fundBases.push({ date, amount, rate });
+  });
+
+  // Sort by date descending
+  state.salaries.sort((a, b) => b.date.localeCompare(a.date));
+  state.siBases.sort((a, b) => b.date.localeCompare(a.date));
+  state.fundBases.sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function saveState() {
+  readState();
+  localStorage.setItem('fyc_state', JSON.stringify(state));
+}
+
+// Read the embedded payload injected by savePage(), if present.
+// Saved pages ship with all data baked in — they MUST ignore localStorage
+// (the user's requirement is "不要保存到缓存里").
+function loadEmbeddedSnapshot() {
+  const tag = document.getElementById('__EMBEDDED_FYC_BOOT__');
+  if (!tag) return null;
+  try {
+    const text = tag.textContent || tag.innerText || '';
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (e) {
+    console.warn('读取内嵌快照失败', e);
+    return null;
+  }
+}
+const __EMBEDDED_FYC__ = loadEmbeddedSnapshot();
+
+function loadState() {
+  if (__EMBEDDED_FYC__ && __EMBEDDED_FYC__.stateSnapshot) {
+    // Saved page: use the embedded state directly. No localStorage lookup,
+    // no "每次打开都留空" override — we want the saved values intact.
+    try {
+      state = { ...state, ...__EMBEDDED_FYC__.stateSnapshot };
+    } catch(e) {}
+    return;
+  }
+  // Normal (non-saved) page — previous behaviour.
+  const saved = localStorage.getItem('fyc_state');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      state = { ...state, ...s };
+    } catch(e) {}
+  }
+  // 日期每次打开都留空，由用户手动填写
+  state.startDate = '';
+  state.endDate = '';
+}
+
+function restoreUI() {
+  window.__restoreUIRunning = true;
+  try {
+    document.getElementById('city-select').value = state.city;
+    if (state.startDate) document.getElementById('start-date-select').value = state.startDate;
+    if (state.endDate) document.getElementById('end-date-select').value = state.endDate;
+    updateCityTip();
+    toggleCustomPanel();
+    syncCustomRatesToUI();
+    setViewScope(state.viewScope || 'all', true);
+
+    // 关键修复：判断是否需要基于入职日期自动生成记录
+    // 条件：state.startDate 存在，且三条记录数组都为空
+    const needAutoGenerate = state.startDate
+      && state.salaries.length === 0
+      && state.siBases.length === 0
+      && state.fundBases.length === 0;
+
+    // Restore salary rows
+    document.getElementById('salary-timeline').innerHTML = '';
+    if (needAutoGenerate) {
+      addSalaryRow(state.startDate, '', true, true);
+      sortTimelineContainer(document.getElementById('salary-timeline'));
+    } else if (state.salaries.length === 0) {
+      addSalaryRow(undefined, undefined, false, true);
+    } else {
+      state.salaries.forEach(s => addSalaryRow(s.date, s.amount, true, true));
+      sortTimelineContainer(document.getElementById('salary-timeline'));
+    }
+
+    // Restore SI base rows
+    document.getElementById('si-base-timeline').innerHTML = '';
+    if (needAutoGenerate) {
+      const limits = getCityBaseLimits(state.city, state.startDate);
+      addSIBaseRow(state.startDate, limits.lower, undefined, true, true);
+      sortTimelineContainer(document.getElementById('si-base-timeline'));
+    } else if (state.siBases.length === 0) {
+      addSIBaseRow(undefined, undefined, undefined, false, true);
+    } else {
+      state.siBases.forEach(s => addSIBaseRow(s.date, s.amount, s.rates, true, true));
+      sortTimelineContainer(document.getElementById('si-base-timeline'));
+    }
+
+    // Restore fund base rows
+    document.getElementById('fund-base-timeline').innerHTML = '';
+    if (needAutoGenerate) {
+      const fundMin = FUND_MIN_BASES[state.city] || 2500;
+      addFundBaseRow(state.startDate, fundMin, state.fundRate, true, true);
+      sortTimelineContainer(document.getElementById('fund-base-timeline'));
+    } else if (state.fundBases.length === 0) {
+      addFundBaseRow(undefined, undefined, undefined, false, true);
+    } else {
+      state.fundBases.forEach(s => addFundBaseRow(s.date, s.amount, s.rate, true, true));
+      sortTimelineContainer(document.getElementById('fund-base-timeline'));
+    }
+  } finally {
+    window.__restoreUIRunning = false;
+  }
+}
+
+function updateCityTip() {
+  const el = document.getElementById('city-tip');
+  if (!el) return;
+  const city = state.city;
+  if (city === '自定义') {
+    el.textContent = '自定义城市：请手动设置费率和基数上下限';
+    return;
+  }
+  const cityData = CITY_DATA[city];
+  el.textContent = cityData ? `${city}每年${cityData.adjMonth}调整社保基数` : '';
+}
+
+// ============================================================
+// CALCULATION ENGINE
+// ============================================================
+function calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates) {
+  const cityR = state.city === '自定义' ? state.customRates : CITY_DATA[state.city].rates;
+  // Use per-row siRates if provided, otherwise city defaults
+  const r = siRates ? { ...cityR, ...siRates } : cityR;
+  // Override fund rate
+  const fp = fundRate / 100;
+  const fe = fundRate / 100;
+
+  // Required base (clamped to salary within limits)
+  const requiredSIBase = Math.min(Math.max(salary, limits.lower), limits.upper);
+  // Fund base uses same limits
+  const requiredFundBase = Math.min(Math.max(salary, limits.lower), limits.upper);
+
+  // Actual bases
+  const actualSIBase = siBase;
+  const actualFundBase = fundBase;
+
+  const types = [
+    { name: '养老保险', pRate: r.pension_p / 100, eRate: r.pension_e / 100, isFund: false },
+    { name: '医疗保险', pRate: r.medical_p / 100, eRate: r.medical_e / 100, isFund: false },
+    { name: '失业保险', pRate: r.unemployment_p / 100, eRate: r.unemployment_e / 100, isFund: false },
+    { name: '工伤保险', pRate: r.injury_p / 100, eRate: r.injury_e / 100, isFund: false },
+    { name: '生育保险', pRate: r.maternity_p / 100, eRate: r.maternity_e / 100, isFund: false },
+    { name: '公积金', pRate: fp, eRate: fe, isFund: true },
+  ];
+
+  const details = types.map(t => {
+    const reqBase = t.isFund ? requiredFundBase : requiredSIBase;
+    const actBase = t.isFund ? actualFundBase : actualSIBase;
+    const reqP = +(reqBase * t.pRate).toFixed(2);
+    const reqE = +(reqBase * t.eRate).toFixed(2);
+    const actP = +(actBase * t.pRate).toFixed(2);
+    const actE = +(actBase * t.eRate).toFixed(2);
+    return {
+      name: t.name,
+      reqP, reqE, actP, actE,
+      diffP: +(reqP - actP).toFixed(2),
+      diffE: +(reqE - actE).toFixed(2),
+    };
+  });
+
+  const totalReqP = +details.reduce((s, d) => s + d.reqP, 0).toFixed(2);
+  const totalReqE = +details.reduce((s, d) => s + d.reqE, 0).toFixed(2);
+  const totalActP = +details.reduce((s, d) => s + d.actP, 0).toFixed(2);
+  const totalActE = +details.reduce((s, d) => s + d.actE, 0).toFixed(2);
+
+  return {
+    salary,
+    requiredSIBase,
+    actualSIBase,
+    requiredFundBase,
+    actualFundBase,
+    details,
+    totalReqP, totalReqE, totalActP, totalActE,
+    diffP: +(totalReqP - totalActP).toFixed(2),
+    diffE: +(totalReqE - totalActE).toFixed(2),
+  };
+}
+
+function calculate() {
+  readState();
+
+  if (state.salaries.length === 0) {
+    alert('请至少添加一条工资记录');
+    return;
+  }
+
+  // Determine the month range from config panel dates
+  const earliestMonth = state.startDate;
+  const currentMonth = state.endDate;
+
+  if (!earliestMonth || !currentMonth) {
+    alert('请设置入职日期和计算结束日期');
+    return;
+  }
+
+  // Build month list
+  const months = [];
+  let m = earliestMonth;
+  while (m <= currentMonth) {
+    months.push(m);
+    m = addMonths(m, 1);
+  }
+
+  // For each month, determine salary, SI base, fund base
+  const monthlyResults = [];
+  const summaryByType = {};
+
+  for (const month of months) {
+    // Get salary for this month (latest salary record <= month)
+    const salaryRec = state.salaries.find(s => s.date <= month);
+    if (!salaryRec) continue;
+    const salary = salaryRec.amount;
+
+    // Get SI base for this month (with fallback to oldest if all records > month)
+    const siRec = (() => {
+      let r = state.siBases.find(s => s.date <= month);
+      if (!r && state.siBases.length > 0) r = state.siBases[state.siBases.length - 1];
+      return r;
+    })();
+    const siBase = siRec ? siRec.amount : 0;
+    const siRates = siRec ? siRec.rates : null;
+
+    // Get fund base for this month (with fallback to oldest if all records > month)
+    const fundRec = (() => {
+      let r = state.fundBases.find(s => s.date <= month);
+      if (!r && state.fundBases.length > 0) r = state.fundBases[state.fundBases.length - 1];
+      return r;
+    })();
+    const fundBase = fundRec ? fundRec.amount : 0;
+    const fundRate = fundRec ? fundRec.rate : state.fundRate;
+
+    const limits = getCityBaseLimits(state.city, month);
+
+    const result = calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates);
+
+    monthlyResults.push({ month, ...result });
+
+    // Accumulate summary (respect viewScope)
+    const skipFund = state.viewScope === 'si';
+    const skipSI = state.viewScope === 'fund';
+    for (const d of result.details) {
+      if (skipFund && d.name === '公积金') continue;
+      if (skipSI && d.name !== '公积金') continue;
+      if (!summaryByType[d.name]) {
+        summaryByType[d.name] = { reqP: 0, reqE: 0, actP: 0, actE: 0, diffP: 0, diffE: 0 };
+      }
+      summaryByType[d.name].reqP += d.reqP;
+      summaryByType[d.name].reqE += d.reqE;
+      summaryByType[d.name].actP += d.actP;
+      summaryByType[d.name].actE += d.actE;
+      summaryByType[d.name].diffP += d.diffP;
+      summaryByType[d.name].diffE += d.diffE;
+    }
+  }
+
+  // Grand totals (scoped) — derive from already-filtered summaryByType so they match viewScope
+  let grandReqP = 0, grandReqE = 0, grandActP = 0, grandActE = 0;
+  for (const k in summaryByType) {
+    grandReqP += summaryByType[k].reqP;
+    grandReqE += summaryByType[k].reqE;
+    grandActP += summaryByType[k].actP;
+    grandActE += summaryByType[k].actE;
+  }
+  grandReqP = +grandReqP.toFixed(2);
+  grandReqE = +grandReqE.toFixed(2);
+  grandActP = +grandActP.toFixed(2);
+  grandActE = +grandActE.toFixed(2);
+  const grandDiffP = +(grandReqP - grandActP).toFixed(2);
+  const grandDiffE = +(grandReqE - grandActE).toFixed(2);
+
+  // Render results
+  renderResults(monthlyResults, summaryByType, grandReqP, grandReqE, grandActP, grandActE, grandDiffP, grandDiffE);
+}
+
+// ============================================================
+// RENDER RESULTS
+// ============================================================
+function renderResults(monthly, summary, gReqP, gReqE, gActP, gActE, gDiffP, gDiffE) {
+  document.getElementById('results-section').classList.remove('hidden');
+  // Show the charts section that now lives below the 计算 button
+  const chartsSec = document.getElementById('charts-section');
+  if (chartsSec) chartsSec.classList.remove('hidden');
+
+  // Summary cards
+  document.getElementById('res-personal-total').textContent = fmt(gDiffP);
+  document.getElementById('res-employer-total').textContent = fmt(gDiffE);
+  document.getElementById('res-combined-total').textContent = fmt(+(gDiffP + gDiffE).toFixed(2));
+
+  // Summary table
+  const tbody = document.getElementById('summary-table-body');
+  tbody.innerHTML = '';
+  let typeOrder = ['养老保险', '医疗保险', '失业保险', '工伤保险', '生育保险', '公积金'];
+  if (state.viewScope === 'si') typeOrder = typeOrder.filter(n => n !== '公积金');
+  if (state.viewScope === 'fund') typeOrder = typeOrder.filter(n => n === '公积金');
+  let totalRow = { reqP: 0, reqE: 0, actP: 0, actE: 0, diffP: 0, diffE: 0 };
+
+  for (const name of typeOrder) {
+    const s = summary[name];
+    if (!s) continue;
+    const vals = {
+      reqP: +s.reqP.toFixed(2), reqE: +s.reqE.toFixed(2),
+      actP: +s.actP.toFixed(2), actE: +s.actE.toFixed(2),
+      diffP: +s.diffP.toFixed(2), diffE: +s.diffE.toFixed(2),
+    };
+    totalRow.reqP += vals.reqP; totalRow.reqE += vals.reqE;
+    totalRow.actP += vals.actP; totalRow.actE += vals.actE;
+    totalRow.diffP += vals.diffP; totalRow.diffE += vals.diffE;
+
+    const tr = document.createElement('tr');
+    tr.className = 'border-t border-slate-100 hover:bg-slate-50';
+    tr.innerHTML = `
+      <td class="px-6 py-3 font-medium text-slate-700">${name}</td>
+      <td class="px-4 py-3 text-right font-mono">${fmtNum(vals.reqP)}</td>
+      <td class="px-4 py-3 text-right font-mono">${fmtNum(vals.actP)}</td>
+      <td class="px-4 py-3 text-right font-mono ${vals.diffP > 0 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${fmtNum(vals.diffP)}</td>
+      <td class="px-4 py-3 text-right font-mono">${fmtNum(vals.reqE)}</td>
+      <td class="px-4 py-3 text-right font-mono">${fmtNum(vals.actE)}</td>
+      <td class="px-4 py-3 text-right font-mono ${vals.diffE > 0 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${fmtNum(vals.diffE)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Total row
+  const totTr = document.createElement('tr');
+  totTr.className = 'border-t-2 border-slate-300 bg-slate-50 font-bold';
+  totTr.innerHTML = `
+    <td class="px-6 py-3 text-slate-800">合计</td>
+    <td class="px-4 py-3 text-right font-mono">${fmtNum(+totalRow.reqP.toFixed(2))}</td>
+    <td class="px-4 py-3 text-right font-mono">${fmtNum(+totalRow.actP.toFixed(2))}</td>
+    <td class="px-4 py-3 text-right font-mono text-rose-500">${fmtNum(+totalRow.diffP.toFixed(2))}</td>
+    <td class="px-4 py-3 text-right font-mono">${fmtNum(+totalRow.reqE.toFixed(2))}</td>
+    <td class="px-4 py-3 text-right font-mono">${fmtNum(+totalRow.actE.toFixed(2))}</td>
+    <td class="px-4 py-3 text-right font-mono text-rose-500">${fmtNum(+totalRow.diffE.toFixed(2))}</td>
+  `;
+  tbody.appendChild(totTr);
+
+  // Monthly detail table — each month expanded into per-insurance rows + subtotal
+  // Consecutive identical months are collapsed into a single "与上月相同" row
+  const mtbody = document.getElementById('monthly-table-body');
+  mtbody.innerHTML = '';
+  document.getElementById('month-count').textContent = `共 ${monthly.length} 个月`;
+
+  const skipFund = state.viewScope === 'si';
+  const skipSI = state.viewScope === 'fund';
+
+  // Helper: compare two monthly results (inputs + outputs)
+  function isSameMonthResult(a, b) {
+    if (!a || !b) return false;
+    if (a.salary !== b.salary) return false;
+    if (a.requiredSIBase !== b.requiredSIBase) return false;
+    if (a.actualSIBase !== b.actualSIBase) return false;
+    if (a.requiredFundBase !== b.requiredFundBase) return false;
+    if (a.actualFundBase !== b.actualFundBase) return false;
+    if (a.details.length !== b.details.length) return false;
+    for (let i = 0; i < a.details.length; i++) {
+      const da = a.details[i], db = b.details[i];
+      if (da.reqP !== db.reqP || da.actP !== db.actP || da.reqE !== db.reqE || da.actE !== db.actE) return false;
+    }
+    return true;
+  }
+
+  let prevR = null;
+  // Consecutive "与上月相同" months are batched and rendered as a single
+  // row joined by "; " (e.g. "2022-01 — 与上月相同，不做展示; 2022-02 — 与上月相同，不做展示")
+  // instead of one <tr> per month, which made the table unnecessarily long.
+  let sameMonths = [];
+  const flushSameMonths = () => {
+    if (sameMonths.length === 0) return;
+    const tr = document.createElement('tr');
+    tr.className = 'border-t border-slate-50 text-slate-400 italic';
+    tr.innerHTML = `
+      <td class="px-4 py-1.5 text-slate-400" colspan="10">${sameMonths.map(m => `${m} — 与上月相同，不做展示`).join('; ')}</td>
+    `;
+    mtbody.appendChild(tr);
+    sameMonths = [];
+  };
+
+  for (const r of monthly) {
+    // Filter visible details by viewScope
+    const visibleDetails = r.details.filter(d => {
+      if (skipFund && d.name === '公积金') return false;
+      if (skipSI && d.name !== '公积金') return false;
+      return true;
+    });
+
+    // If identical to previous month, defer rendering — batch with neighbors
+    if (isSameMonthResult(prevR, r)) {
+      sameMonths.push(r.month);
+      prevR = r;
+      continue;
+    }
+
+    // Flush any accumulated "与上月相同" batch before rendering the new month
+    flushSameMonths();
+
+    // Month header row (spans all columns, shows month + salary + bases summary)
+    const headerTr = document.createElement('tr');
+    headerTr.className = 'border-t-2 border-slate-200 bg-slate-50/70 font-semibold';
+    headerTr.innerHTML = `
+      <td class="px-4 py-2 text-slate-700" colspan="4">
+        ${r.month}
+        <span class="ml-3 text-slate-400 font-normal">工资 ${fmtNum(r.salary)} · 应缴基数 ${fmtNum(r.requiredSIBase)} · 实缴基数 ${fmtNum(r.actualSIBase)}</span>
+      </td>
+      <td class="px-3 py-2 text-right font-mono text-slate-400" colspan="6"></td>
+    `;
+    mtbody.appendChild(headerTr);
+
+    // Per-insurance detail rows
+    for (const d of visibleDetails) {
+      const reqBase = d.name === '公积金' ? r.requiredFundBase : r.requiredSIBase;
+      const actBase = d.name === '公积金' ? r.actualFundBase : r.actualSIBase;
+      const tr = document.createElement('tr');
+      tr.className = 'border-t border-slate-50 hover:bg-slate-50/50';
+      tr.innerHTML = `
+        <td class="px-4 py-1.5 pl-8 text-slate-500">└ ${d.name}</td>
+        <td class="px-3 py-1.5 text-right font-mono text-slate-300">—</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(reqBase)}</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(actBase)}</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(d.reqP)}</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(d.actP)}</td>
+        <td class="px-3 py-1.5 text-right font-mono ${d.diffP > 0 ? 'text-rose-500 font-bold' : 'text-slate-300'}">${fmtNum(d.diffP)}</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(d.reqE)}</td>
+        <td class="px-3 py-1.5 text-right font-mono">${fmtNum(d.actE)}</td>
+        <td class="px-3 py-1.5 text-right font-mono ${d.diffE > 0 ? 'text-rose-500 font-bold' : 'text-slate-300'}">${fmtNum(d.diffE)}</td>
+      `;
+      mtbody.appendChild(tr);
+    }
+
+    // Subtotal row for this month (only visible details)
+    const subReqP = +visibleDetails.reduce((s, d) => s + d.reqP, 0).toFixed(2);
+    const subActP = +visibleDetails.reduce((s, d) => s + d.actP, 0).toFixed(2);
+    const subDiffP = +(subReqP - subActP).toFixed(2);
+    const subReqE = +visibleDetails.reduce((s, d) => s + d.reqE, 0).toFixed(2);
+    const subActE = +visibleDetails.reduce((s, d) => s + d.actE, 0).toFixed(2);
+    const subDiffE = +(subReqE - subActE).toFixed(2);
+
+    const subTr = document.createElement('tr');
+    subTr.className = 'border-t border-slate-200 bg-slate-50 font-medium';
+    subTr.innerHTML = `
+      <td class="px-4 py-1.5 text-slate-600" colspan="4">小计</td>
+      <td class="px-3 py-1.5 text-right font-mono">${fmtNum(subReqP)}</td>
+      <td class="px-3 py-1.5 text-right font-mono">${fmtNum(subActP)}</td>
+      <td class="px-3 py-1.5 text-right font-mono ${subDiffP > 0 ? 'text-rose-500 font-bold' : ''}">${fmtNum(subDiffP)}</td>
+      <td class="px-3 py-1.5 text-right font-mono">${fmtNum(subReqE)}</td>
+      <td class="px-3 py-1.5 text-right font-mono">${fmtNum(subActE)}</td>
+      <td class="px-3 py-1.5 text-right font-mono ${subDiffE > 0 ? 'text-rose-500 font-bold' : ''}">${fmtNum(subDiffE)}</td>
+    `;
+    mtbody.appendChild(subTr);
+    prevR = r;
+  }
+
+  // Flush any trailing batch of "与上月相同" months (when the last months are all identical)
+  flushSameMonths();
+
+  // Charts
+  renderBarChart(gReqP, gReqE, gActP, gActE);
+  renderLineChart(monthly);
+
+  // Scroll to results
+  document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderBarChart(gReqP, gReqE, gActP, gActE) {
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if (barChartInstance) barChartInstance.destroy();
+
+  barChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['个人部分', '公司部分', '合计'],
+      datasets: [
+        {
+          label: '应缴金额',
+          data: [gReqP, gReqE, +(gReqP + gReqE).toFixed(2)],
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1,
+          borderRadius: 6,
+        },
+        {
+          label: '实缴金额',
+          data: [gActP, gActE, +(gActP + gActE).toFixed(2)],
+          backgroundColor: 'rgba(249, 115, 22, 0.7)',
+          borderColor: 'rgba(249, 115, 22, 1)',
+          borderWidth: 1,
+          borderRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: { label: ctx => `${ctx.dataset.label}: ¥${ctx.parsed.y.toFixed(2)}` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => '¥' + v.toLocaleString() }
+        }
+      }
+    }
+  });
+}
+
+function renderLineChart(monthly) {
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (lineChartInstance) lineChartInstance.destroy();
+
+  const labels = monthly.map(r => r.month);
+  const personalDiff = monthly.map(r => r.diffP);
+  const employerDiff = monthly.map(r => r.diffE);
+
+  lineChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: '个人差额',
+          data: personalDiff,
+          borderColor: 'rgba(225, 29, 72, 1)',
+          backgroundColor: 'rgba(225, 29, 72, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+        },
+        {
+          label: '公司差额',
+          data: employerDiff,
+          borderColor: 'rgba(249, 115, 22, 1)',
+          backgroundColor: 'rgba(249, 115, 22, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: { label: ctx => `${ctx.dataset.label}: ¥${ctx.parsed.y.toFixed(2)}` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => '¥' + v.toLocaleString() }
+        },
+        x: {
+          ticks: {
+            maxRotation: 45,
+            maxTicksLimit: 12,
+          }
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+//
+// Trim pure-background empty rows off the BOTTOM of an html2canvas result.
+//
+// Even with the best iframe sizing settings, html2canvas sometimes returns
+// a canvas that is N rows taller than the actual content (the extra rows
+// are all the `backgroundColor` we pass in). This function scans rows from
+// the bottom up, finds the last row that actually has non-background
+// pixels, and returns a freshly-cropped canvas with all trailing blank
+// rows sliced off.
+//
+// Tolerance: html2canvas does antialiasing near text/card edges, so we
+// allow pixel colours that are *within ±3 RGB units* of the background
+// to count as "background" for the purposes of this scan.
+function _trimCanvasBottomBlank(canvas, bgRGB) {
+  try {
+    const W = canvas.width;
+    const H = canvas.height;
+    if (!W || !H) return canvas;
+
+    const [bgR, bgG, bgB] = bgRGB;
+    const TOL = 3; // ±3 per-channel tolerance for anti-aliased pixels
+
+    const ctx = canvas.getContext('2d');
+    // Read the full image once; for ~(2k × 6k) × 4B this is ~48MB which is fine.
+    const img = ctx.getImageData(0, 0, W, H);
+    const data = img.data;
+
+    let lastNonBgRow = H - 1;
+    scan:
+    for (let y = H - 1; y >= 0; y--) {
+      const rowStart = y * W * 4;
+      const rowEnd = rowStart + W * 4;
+      for (let i = rowStart; i < rowEnd; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        if (
+          Math.abs(r - bgR) > TOL ||
+          Math.abs(g - bgG) > TOL ||
+          Math.abs(b - bgB) > TOL
+        ) {
+          // At least one pixel on this row is "real content" — stop here.
+          lastNonBgRow = y;
+          break scan;
+        }
+      }
+    }
+
+    // Keep 1 extra row of pure background as a breathing bottom margin
+    // (the user said "no big blank", not "zero padding").
+    const cropH = Math.min(H, lastNonBgRow + 2);
+    if (cropH >= H - 1) return canvas; // nothing meaningful to trim
+
+    const out = document.createElement('canvas');
+    out.width = W;
+    out.height = cropH;
+    const octx = out.getContext('2d');
+    octx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+    octx.fillRect(0, 0, W, cropH);
+    octx.drawImage(canvas, 0, 0);
+    return out;
+  } catch (e) {
+    // getImageData can throw on cross-origin / tainted canvas, or on
+    // extremely large sizes. Gracefully fall back to the untrimmed canvas
+    // rather than crashing the whole export.
+    console.warn('[trim] fell back, reason:', e?.message || e);
+    return canvas;
+  }
+}
+
+async function _captureExportCanvas() {
+  const el = document.getElementById('export-root');
+
+  // Watermark div appended to the *real* export-root only during the
+  // snapshot. This is the ONLY modification we make to the live DOM; by not
+  // touching section / input styles here, the user sees zero visual
+  // distortion (no "page stretches" flash right before export).
+  const watermark = document.createElement('div');
+  watermark.style.cssText = 'text-align:center;padding:16px;font-size:12px;color:#999;letter-spacing:3px;border-top:1px solid #eee;margin-top:24px;';
+  watermark.textContent = 'www.fuckyourcompany.com · FuckYourCompany';
+
+  // ---------- PREFLIGHT (read-only — no DOM mutation!) ----------
+  // Measure the content width ON THE REAL PAGE, which the user can see.
+  // `scrollWidth` of the monthly-detail table is used because the real page
+  // keeps overflow-x:auto on that scroll container (we intentionally do NOT
+  // lift it on the live page — otherwise the layout would horizontally
+  // stretch, which the user sees as a flash). scrollWidth always returns the
+  // actual content width regardless of the overflow style, so the reading
+  // is accurate even with the scrollbar present.
+  let preflightW = Math.max(
+    el.scrollWidth,
+    document.documentElement.scrollWidth,
+    el.clientWidth,
+    Math.ceil(el.getBoundingClientRect().width)
+  );
+  const mdScroll = document.getElementById('monthly-detail-scroll');
+  if (mdScroll) preflightW = Math.max(preflightW, mdScroll.scrollWidth);
+  preflightW = Math.max(preflightW, 1024);
+
+  // Estimate a safe windowHeight for the iframe.  We intentionally overshoot
+  // generously here — any extra height left over inside the iframe will be
+  // caught by `_trimCanvasBottomBlank` below, which cropped it pixel-perfect
+  // to the last real row of content, so "too-tall iframe" is 100% harmless.
+  const realH = Math.max(
+    el.scrollHeight,
+    document.documentElement.scrollHeight,
+    el.offsetHeight,
+    Math.ceil(el.getBoundingClientRect().height)
+  );
+  // ~800px of headroom is enough for:
+  //   * ~50 sections × 10px extra padding-bottom
+  //   * ~300 inputs × 8px extra top+bottom padding
+  //   * +watermark + body.pb-20
+  const preflightWindowH = realH + 800;
+
+  el.appendChild(watermark);
+  void el.offsetHeight;
+
+  try {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const BG = [241, 245, 249]; // matches backgroundColor
+
+    // Key sizing note:
+    //   * DO pass windowWidth/windowHeight — these control the CLONED
+    //     iframe's viewport inside html2canvas. Without a wide enough
+    //     windowWidth the iframe's viewport is too narrow and the long
+    //     monthly-detail table will wrap horizontally, cropping columns.
+    //   * DO NOT pass an explicit `width` or `height` to html2canvas.
+    //     When both are omitted, html2canvas measures the cloned root's
+    //     bounding rect AFTER onclone finishes and sizes the canvas to
+    //     exactly that size — which is the behavior we want. (Passing an
+    //     explicit `width` but no `height` makes html2canvas pad the canvas
+    //     height out to `windowHeight`, producing the big blank tail the
+    //     user reported.)
+    const canvas = await html2canvas(el, {
+      scale: dpr,
+      useCORS: true,
+      backgroundColor: `rgb(${BG[0]},${BG[1]},${BG[2]})`,
+      logging: false,
+      windowWidth: preflightW,
+      windowHeight: preflightWindowH,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      onclone: (clonedDoc) => {
+        try {
+          // ---------- LAYOUT (iframe only) ----------
+          const cssW = preflightW + 'px';
+          clonedDoc.documentElement.style.cssText =
+            'width:' + cssW + ' !important;min-width:' + cssW + ' !important;overflow:visible !important;';
+          clonedDoc.body.style.cssText =
+            'width:' + cssW + ' !important;min-width:' + cssW + ' !important;overflow:visible !important;background:rgb(' + BG[0] + ',' + BG[1] + ',' + BG[2] + ') !important;';
+          const clonedMain = clonedDoc.querySelector('main');
+          if (clonedMain) {
+            clonedMain.style.cssText =
+              'max-width:none !important;width:' + cssW + ' !important;margin-left:0 !important;margin-right:0 !important;padding-left:32px !important;padding-right:32px !important;';
+          }
+          const clonedRoot = clonedDoc.getElementById('export-root');
+          if (clonedRoot) {
+            clonedRoot.style.cssText =
+              'max-width:none !important;width:' + cssW + ' !important;margin-left:0 !important;margin-right:0 !important;padding-left:32px !important;padding-right:32px !important;padding-bottom:96px !important;';
+          }
+          const clonedScroll = clonedDoc.getElementById('monthly-detail-scroll');
+          if (clonedScroll) {
+            clonedScroll.style.cssText =
+              'overflow:visible !important;max-height:none !important;';
+          }
+
+          // ---------- STYLESHEET PATCHES (iframe only, invisible to user) --
+          if (clonedRoot) {
+            const patchInClone = (node) => {
+              if (!node || node.nodeType !== 1) return;
+              const tag = node.tagName;
+              if (tag === 'SECTION') {
+                const cs = clonedDoc.defaultView.getComputedStyle(node);
+                node.style.setProperty('overflow', 'visible', 'important');
+                const pb = parseFloat(cs.paddingBottom || '0');
+                node.style.setProperty(
+                  'padding-bottom', (pb + 10) + 'px', 'important'
+                );
+              } else if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+                const cs = clonedDoc.defaultView.getComputedStyle(node);
+                node.style.setProperty('box-sizing', 'content-box', 'important');
+                node.style.setProperty(
+                  'padding-top',
+                  (parseFloat(cs.paddingTop || '0') + 4) + 'px',
+                  'important'
+                );
+                node.style.setProperty(
+                  'padding-bottom',
+                  (parseFloat(cs.paddingBottom || '0') + 4) + 'px',
+                  'important'
+                );
+                node.style.setProperty('line-height', '1.6', 'important');
+                node.style.setProperty('vertical-align', 'top', 'important');
+              } else if (tag === 'P' || tag === 'SPAN' || tag === 'LABEL' || tag === 'DIV') {
+                const hasText = (node.textContent || '').trim().length > 0;
+                if (hasText) {
+                  const cs = clonedDoc.defaultView.getComputedStyle(node);
+                  const curLH = parseFloat(cs.lineHeight || '0');
+                  if (curLH < 24) {
+                    node.style.setProperty('line-height', '1.66', 'important');
+                    node.style.setProperty('padding-bottom', '2px', 'important');
+                  }
+                }
+              }
+              for (let i = 0; i < node.children.length; i++) {
+                patchInClone(node.children[i]);
+              }
+            };
+            patchInClone(clonedRoot);
+          }
+        } catch (_) { /* onclone best-effort only; html2canvas continues */ }
+      },
+    });
+
+    // Final guard: crop off any leftover pure-background rows at the bottom.
+    // (This gives us pixel-perfect bottom trimming regardless of how tall
+    // html2canvas sized the output — the iframe was intentionally over-sized
+    // to guarantee we never under-measure and lose content.)
+    return _trimCanvasBottomBlank(canvas, BG);
+  } finally {
+    if (watermark.parentElement) watermark.parentElement.removeChild(watermark);
+    void document.body.offsetHeight;
+  }
+}
+
+async function exportPDF() {
+  try {
+    const canvas = await _captureExportCanvas();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    // A4 portrait dimensions in mm
+    const PAGE_W_MM = 210;
+    const PAGE_H_MM = 297;
+    // Safety margin on each side so jsPDF never clips the outermost row of
+    // pixels (numbers sitting right at a page border would otherwise lose
+    // their descenders / bottom 1/4).
+    const MARGIN_MM = 3;
+    const USABLE_W_MM = PAGE_W_MM - MARGIN_MM * 2;
+    const USABLE_H_MM = PAGE_H_MM - MARGIN_MM * 2;
+
+    const W_PX = canvas.width;
+    const H_PX = canvas.height;
+    const MM_PER_PX = USABLE_W_MM / W_PX;
+    const PAGE_H_PX = USABLE_H_MM / MM_PER_PX;
+
+    // A 15-px overlap between pages ensures that if a number row sits *exactly*
+    // at the split boundary it appears fully on at least one of the pages
+    // (instead of being sliced in half and looking like it's missing a quarter).
+    const OVERLAP_PX = 15;
+
+    let offsetPx = 0;
+    let isFirstPage = true;
+    const totalHeightPx = H_PX;
+
+    while (offsetPx < totalHeightPx) {
+      if (!isFirstPage) pdf.addPage();
+
+      const endPx = Math.min(offsetPx + PAGE_H_PX, totalHeightPx);
+      let sliceH = endPx - offsetPx;
+      let drawOffsetY = 0;
+      if (!isFirstPage && offsetPx >= OVERLAP_PX) {
+        // Pull the slice start UP by OVERLAP_PX so content on the boundary
+        // is fully rendered on this page too.
+        offsetPx -= OVERLAP_PX;
+        sliceH += OVERLAP_PX;
+        drawOffsetY = OVERLAP_PX * MM_PER_PX;
+      }
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = W_PX;
+      sliceCanvas.height = sliceH;
+      const ctx = sliceCanvas.getContext('2d');
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(0, 0, W_PX, sliceH);
+      ctx.drawImage(canvas,
+        0, offsetPx, W_PX, sliceH,
+        0, 0, W_PX, sliceH);
+
+      const sliceH_mm = Math.min(sliceH * MM_PER_PX, USABLE_H_MM);
+      const dataUri = sliceCanvas.toDataURL('image/jpeg', 0.95);
+      pdf.addImage(dataUri, 'JPEG', MARGIN_MM, MARGIN_MM + drawOffsetY, USABLE_W_MM, sliceH_mm);
+
+      // Advance to the next page boundary (before we backtracked for overlap)
+      offsetPx = endPx;
+      isFirstPage = false;
+    }
+
+    pdf.save('FuckYourCompany_社保欠缴报告.pdf');
+  } catch (e) {
+    alert('导出 PDF 失败：' + (e?.message || e));
+  }
+}
+
+async function exportJPG() {
+  try {
+    const canvas = await _captureExportCanvas();
+    const link = document.createElement('a');
+    link.download = 'FuckYourCompany_社保欠缴报告.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+  } catch (e) {
+    alert('导出图片失败：' + (e?.message || e));
+  }
+}
+
+// ============================================================
+// SAVE PAGE
+// ============================================================
+function _serializeAllFormValuesToAttrs() {
+  // Write live .value back to `value="..."` / `checked` / `selected`
+  // attributes on every input/select/textarea so that
+  // `document.documentElement.outerHTML` actually contains the user data,
+  // not empty inputs.
+  document.querySelectorAll('input, select, textarea').forEach(el => {
+    const tag = el.tagName.toLowerCase();
+    const type = (el.getAttribute('type') || 'text').toLowerCase();
+    try {
+      if (tag === 'input' && (type === 'checkbox' || type === 'radio')) {
+        if (el.checked) el.setAttribute('checked', 'checked');
+        else el.removeAttribute('checked');
+      } else if (tag === 'select') {
+        Array.from(el.options || []).forEach(opt => {
+          if (opt.selected) opt.setAttribute('selected', 'selected');
+          else opt.removeAttribute('selected');
+        });
+        // Also reflect selectedIndex on the element itself for good measure
+        el.setAttribute('value', el.value || '');
+      } else {
+        el.setAttribute('value', el.value ?? '');
+      }
+    } catch (_) { /* best-effort only */ }
+  });
+}
+
+function _materializeChartsWithImg() {
+  // Chart.js canvas images are not captured by outerHTML because they live
+  // in the canvas framebuffer. Replace each chart canvas with a dataURL
+  // <img> next to it (then remove the canvas) — but we'll only do this for
+  // the saved copy, so we make a temporary copy and note the dataURLs to
+  // re-apply after serialization.
+  const mapping = []; // [{canvasId, dataUrl}]
+  document.querySelectorAll('canvas').forEach(cv => {
+    try {
+      const w = cv.width, h = cv.height;
+      if (!w || !h) return;
+      const url = cv.toDataURL('image/png');
+      mapping.push({ canvasId: cv.id || '', dataUrl: url, w, h });
+    } catch (_) {}
+  });
+  return mapping;
+}
+
+function savePage() {
+  try {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+
+    // (1) Force form values into attributes. outerHTML only sees attrs.
+    _serializeAllFormValuesToAttrs();
+
+    // (2) Snapshot chart canvas pixels to dataURLs.
+    const chartSnapshots = _materializeChartsWithImg();
+
+    // (3) Build the embedded snapshot: full state + a snapshot of result HTML
+    // so that users who open the saved page WITHOUT internet/localStorage
+    // still see the same tables/charts — no "load from cache" required.
+    const chartsSection = document.getElementById('charts-section');
+    const resultsSection = document.getElementById('results-section');
+    const chartsHidden = chartsSection ? chartsSection.classList.contains('hidden') : false;
+    const resultsHidden = resultsSection ? resultsSection.classList.contains('hidden') : false;
+
+    const embedded = {
+      version: 1,
+      savedAt: now.toISOString(),
+      // User's inputs — opening the page restores state from this blob
+      // directly, so localStorage / the browser cache is irrelevant.
+      stateSnapshot: JSON.parse(JSON.stringify(state)),
+      // Calculation results (if any). Only need resultsSection innerHTML:
+      // results-section already includes "累计欠缴对比 + 分类 + 月度明细
+      // + 导出按钮". charts-section is re-inserted separately via <img>.
+      resultsHtml: !resultsHidden ? resultsSection.outerHTML : null,
+      chartsHtml: null, // populated below with materialized <img> copies
+      chartSnapshots,
+      chartsHidden,
+      resultsHidden,
+    };
+
+    // For charts, clone the charts-section with the canvas replaced by <img>
+    // so the saved page can render the charts without running Chart.js.
+    if (chartsSection && !chartsHidden) {
+      const clone = chartsSection.cloneNode(true);
+      chartSnapshots.forEach(({ canvasId, dataUrl, w, h }) => {
+        const cvs = canvasId ? clone.querySelector(`canvas#${canvasId}`) : null;
+        if (cvs && dataUrl) {
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.alt = 'chart';
+          img.style.cssText = 'width:100%;height:auto;max-width:100%;display:block;';
+          img.setAttribute('width', w);
+          img.setAttribute('height', h);
+          cvs.parentNode.replaceChild(img, cvs);
+        }
+      });
+      embedded.chartsHtml = clone.outerHTML;
+    }
+
+    // (4) Get outerHTML *after* writing attrs back
+    const rawHtml = document.documentElement.outerHTML;
+
+    // (5) Inject window.__EMBEDDED_FYC__ into the saved file
+    //     This script runs BEFORE window.load and signals loadState() to skip
+    //     localStorage entirely and use the embedded snapshot.
+    const payload =
+      '<script id="__EMBEDDED_FYC_BOOT__" type="application/json">' +
+      JSON.stringify(embedded).split('</script').join('<\\/script') +
+      '</scr' + 'ipt>';
+
+    // Also materialize canvas → <img> in the saved <charts-section> so that
+    // the chart area is visible immediately. `embedded.chartsHtml` is what
+    // the restoreUI() path uses, but if JS is blocked we still want a
+    // visible fall-back.
+    const finalHtml = rawHtml;
+
+    // (6) Wrap up: prepend DOCTYPE + inject the embedded payload block
+    const html =
+      '<!DOCTYPE html>\n' +
+      finalHtml.replace(
+        /(<head[\s\S]*?>)/,
+        '$1\n' + payload + '\n'
+      );
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `FuckYourCompany_${dateStr}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    console.error(e);
+    alert('保存网页失败：' + (e?.message || e));
+  }
+}
+
+// ============================================================
+// SHANGHAI EXAMPLE CALCULATION
+// ============================================================
+let exBarChartInstance = null;
+let exDoughnutChartInstance = null;
+
+function renderShanghaiExample() {
+  if (!document.getElementById('ex-rate-fund')) return;
+  const r = CITY_DATA['上海'].rates;
+
+  // Read editable inputs
+  const salary     = parseFloat(document.getElementById('ex-input-salary').value) || 0;
+  const siFullBase = parseFloat(document.getElementById('ex-input-si-full').value) || 0;
+  const siMinBase  = parseFloat(document.getElementById('ex-input-si-min').value) || 0;
+  const fundFullBase = parseFloat(document.getElementById('ex-input-fund-full').value) || 0;
+  const fundMinBase  = parseFloat(document.getElementById('ex-input-fund-min').value) || 0;
+  const fundRate   = 7;
+
+  // Update rate display in fund row
+  document.getElementById('ex-rate-fund').textContent = fundRate + '%/' + fundRate + '%';
+
+  // 五险 items (social insurance only, no fund)
+  const siTypes = [
+    { key: 'pension',      label: '养老', pRate: r.pension_p / 100,      eRate: r.pension_e / 100 },
+    { key: 'medical',      label: '医疗', pRate: r.medical_p / 100,      eRate: r.medical_e / 100 },
+    { key: 'unemployment', label: '失业', pRate: r.unemployment_p / 100,  eRate: r.unemployment_e / 100 },
+    { key: 'injury',       label: '工伤', pRate: r.injury_p / 100,       eRate: r.injury_e / 100 },
+    { key: 'maternity',    label: '生育', pRate: r.maternity_p / 100,    eRate: r.maternity_e / 100 },
+  ];
+
+  // --- Section A: 五险 ---
+  let siFullP = 0, siFullE = 0, siMinP = 0, siMinE = 0;
+  const siDiffs = []; // for doughnut chart
+
+  for (const t of siTypes) {
+    const fp = +(siFullBase * t.pRate).toFixed(2);
+    const fe = +(siFullBase * t.eRate).toFixed(2);
+    const mp = +(siMinBase * t.pRate).toFixed(2);
+    const me = +(siMinBase * t.eRate).toFixed(2);
+    const dp = +(fp - mp).toFixed(2);
+    const de = +(fe - me).toFixed(2);
+
+    siFullP += fp; siFullE += fe; siMinP += mp; siMinE += me;
+
+    document.getElementById('ex-' + t.key + '-full-p').textContent = fmt(fp);
+    document.getElementById('ex-' + t.key + '-full-e').textContent = fmt(fe);
+    document.getElementById('ex-' + t.key + '-min-p').textContent  = fmt(mp);
+    document.getElementById('ex-' + t.key + '-min-e').textContent  = fmt(me);
+    document.getElementById('ex-' + t.key + '-diff-p').textContent = fmt(dp);
+    document.getElementById('ex-' + t.key + '-diff-e').textContent = fmt(de);
+
+    siDiffs.push({ label: t.label + '差额', p: dp, e: de, total: +(dp + de).toFixed(2) });
+  }
+
+  siFullP = +siFullP.toFixed(2); siFullE = +siFullE.toFixed(2);
+  siMinP = +siMinP.toFixed(2);   siMinE = +siMinE.toFixed(2);
+  const siDiffP = +(siFullP - siMinP).toFixed(2);
+  const siDiffE = +(siFullE - siMinE).toFixed(2);
+  const siDiffTotal = +(siDiffP + siDiffE).toFixed(2);
+
+  // 五险小计 row
+  document.getElementById('ex-si-full-p').textContent = fmt(siFullP);
+  document.getElementById('ex-si-full-e').textContent = fmt(siFullE);
+  document.getElementById('ex-si-min-p').textContent  = fmt(siMinP);
+  document.getElementById('ex-si-min-e').textContent  = fmt(siMinE);
+  document.getElementById('ex-si-diff-p').textContent = fmt(siDiffP);
+  document.getElementById('ex-si-diff-e').textContent = fmt(siDiffE);
+
+  // --- Section B: 公积金 ---
+  const fFR = fundRate / 100;
+  const fundFullP = +(fundFullBase * fFR).toFixed(2);
+  const fundFullE = +(fundFullBase * fFR).toFixed(2);
+  const fundMinP  = +(fundMinBase * fFR).toFixed(2);
+  const fundMinE  = +(fundMinBase * fFR).toFixed(2);
+  const fundDiffP = +(fundFullP - fundMinP).toFixed(2);
+  const fundDiffE = +(fundFullE - fundMinE).toFixed(2);
+  const fundDiffTotal = +(fundDiffP + fundDiffE).toFixed(2);
+
+  document.getElementById('ex-fund-full-p').textContent = fmt(fundFullP);
+  document.getElementById('ex-fund-full-e').textContent = fmt(fundFullE);
+  document.getElementById('ex-fund-min-p').textContent  = fmt(fundMinP);
+  document.getElementById('ex-fund-min-e').textContent  = fmt(fundMinE);
+  document.getElementById('ex-fund-diff-p').textContent = fmt(fundDiffP);
+  document.getElementById('ex-fund-diff-e').textContent = fmt(fundDiffE);
+
+  // 公积金小计 row
+  document.getElementById('ex-fund-total-full-p').textContent = fmt(fundFullP);
+  document.getElementById('ex-fund-total-full-e').textContent = fmt(fundFullE);
+  document.getElementById('ex-fund-total-min-p').textContent  = fmt(fundMinP);
+  document.getElementById('ex-fund-total-min-e').textContent  = fmt(fundMinE);
+  document.getElementById('ex-fund-total-diff-p').textContent = fmt(fundDiffP);
+  document.getElementById('ex-fund-total-diff-e').textContent = fmt(fundDiffE);
+
+  // --- Summary cards ---
+  // 社保少缴
+  document.getElementById('ex-si-diff-p-card').textContent   = fmt(siDiffP);
+  document.getElementById('ex-si-diff-e-card').textContent   = fmt(siDiffE);
+  document.getElementById('ex-si-diff-total').textContent     = fmt(siDiffTotal);
+  // 公积金少缴
+  document.getElementById('ex-fund-diff-p-card').textContent  = fmt(fundDiffP);
+  document.getElementById('ex-fund-diff-e-card').textContent  = fmt(fundDiffE);
+  document.getElementById('ex-fund-diff-total').textContent    = fmt(fundDiffTotal);
+  // 合计少缴
+  const totalDiffP = +(siDiffP + fundDiffP).toFixed(2);
+  const totalDiffE = +(siDiffE + fundDiffE).toFixed(2);
+  const totalDiffAll = +(totalDiffP + totalDiffE).toFixed(2);
+  document.getElementById('ex-total-diff-p-card').textContent = fmt(totalDiffP);
+  document.getElementById('ex-total-diff-e-card').textContent = fmt(totalDiffE);
+  document.getElementById('ex-total-diff-all').textContent     = fmt(totalDiffAll);
+
+  // --- Chart A: Stacked bar chart "少缴构成" ---
+  if (exBarChartInstance) { exBarChartInstance.destroy(); exBarChartInstance = null; }
+  const barCtx = document.getElementById('ex-bar-chart');
+  if (barCtx) {
+    exBarChartInstance = new Chart(barCtx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['社保少缴', '公积金少缴'],
+        datasets: [
+          {
+            label: '个人部分',
+            data: [siDiffP, fundDiffP],
+            backgroundColor: 'rgba(251, 113, 133, 0.85)',
+            borderColor: 'rgba(251, 113, 133, 1)',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: '公司部分',
+            data: [siDiffE, fundDiffE],
+            backgroundColor: 'rgba(251, 146, 60, 0.85)',
+            borderColor: 'rgba(251, 146, 60, 1)',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#cbd5e1', font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) { return ctx.dataset.label + ': ¥' + ctx.raw.toFixed(2); }
+            }
+          }
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: {
+            stacked: true, ticks: { color: '#94a3b8', callback: function(v) { return '¥' + v; } },
+            grid: { color: 'rgba(255,255,255,0.08)' }
+          }
+        }
+      },
+      plugins: [{
+        id: 'barValueLabels',
+        afterDatasetsDraw: function(chart) {
+          const ctx2 = chart.ctx;
+          chart.data.datasets.forEach(function(ds, di) {
+            const meta = chart.getDatasetMeta(di);
+            meta.data.forEach(function(bar, i) {
+              const val = ds.data[i];
+              if (val > 0) {
+                ctx2.save();
+                ctx2.fillStyle = '#e2e8f0';
+                ctx2.font = '11px monospace';
+                ctx2.textAlign = 'center';
+                ctx2.fillText('¥' + val.toFixed(0), bar.x, bar.y - 4);
+                ctx2.restore();
+              }
+            });
+          });
+        }
+      }]
+    });
+  }
+
+  // --- Chart B: Doughnut chart "每月差额构成" ---
+  if (exDoughnutChartInstance) { exDoughnutChartInstance.destroy(); exDoughnutChartInstance = null; }
+  const doughnutCtx = document.getElementById('ex-doughnut-chart');
+  if (doughnutCtx) {
+    const allDiffs = [
+      ...siDiffs,
+      { label: '公积金差额', total: fundDiffTotal }
+    ];
+    const totalAll = allDiffs.reduce(function(s, d) { return s + d.total; }, 0);
+    const dColors = ['#fb7185','#f97316','#facc15','#4ade80','#38bdf8','#a78bfa'];
+    exDoughnutChartInstance = new Chart(doughnutCtx.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: allDiffs.map(function(d) { return d.label; }),
+        datasets: [{
+          data: allDiffs.map(function(d) { return d.total; }),
+          backgroundColor: dColors,
+          borderColor: 'rgba(15, 23, 42, 0.8)',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { color: '#cbd5e1', font: { size: 10 }, padding: 8, usePointStyle: true, pointStyleWidth: 8 }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var pct = totalAll > 0 ? ((ctx.raw / totalAll) * 100).toFixed(1) : '0.0';
+                return ctx.label + ': ¥' + ctx.raw.toFixed(2) + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      },
+      plugins: [{
+        id: 'doughnutCenterLabel',
+        afterDraw: function(chart) {
+          const ctx2 = chart.ctx;
+          const cX = (chart.chartArea.left + chart.chartArea.right) / 2;
+          const cY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+          ctx2.save();
+          ctx2.fillStyle = '#94a3b8';
+          ctx2.font = '11px sans-serif';
+          ctx2.textAlign = 'center';
+          ctx2.fillText('合计差额', cX, cY - 8);
+          ctx2.fillStyle = '#fb7185';
+          ctx2.font = 'bold 14px monospace';
+          ctx2.fillText('¥' + totalAll.toFixed(0), cX, cY + 10);
+          ctx2.restore();
+        }
+      }]
+    });
+  }
+}
+
+function setViewScope(scope, skipRefresh) {
+  state.viewScope = scope;
+  // Update button styles
+  ['all','si','fund'].forEach(s => {
+    const btn = document.getElementById('scope-' + s);
+    if (!btn) return;
+    if (s === scope) {
+      btn.className = 'px-3 py-1.5 font-medium transition bg-slate-700 text-white whitespace-nowrap';
+    } else {
+      btn.className = 'px-3 py-1.5 font-medium transition bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap';
+    }
+  });
+  // Show/hide sections
+  const salarySec = document.getElementById('section-salary');
+  const siSec = document.getElementById('section-si');
+  const fundSec = document.getElementById('section-fund');
+  // Salary always shown; hide only the irrelevant part
+  if (salarySec) salarySec.style.display = '';
+  if (siSec) siSec.style.display = (scope === 'fund') ? 'none' : '';
+  if (fundSec) fundSec.style.display = (scope === 'si') ? 'none' : '';
+  saveState();
+  // If results are already showing, re-run calculate so the top summary cards + table refresh
+  if (!skipRefresh) {
+    const resSec = document.getElementById('results-section');
+    if (resSec && !resSec.classList.contains('hidden')) {
+      calculate();
+    }
+  }
+}
+
+function toggleExDetail() {
+  const section = document.getElementById('ex-detail-section');
+  const icon = document.getElementById('ex-detail-icon');
+  const label = document.getElementById('ex-detail-label');
+  if (!section || !icon || !label) return;
+  const isHidden = section.classList.contains('hidden');
+  section.classList.toggle('hidden');
+  icon.style.transform = isHidden ? 'rotate(180deg)' : '';
+  label.textContent = isHidden ? '收起详细明细' : '展开详细明细';
+}
+
+// Attach event listeners to example card inputs
+function initShanghaiExampleListeners() {
+  var inputIds = ['ex-input-salary','ex-input-si-full','ex-input-si-min','ex-input-fund-full','ex-input-fund-min'];
+  inputIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', renderShanghaiExample);
+      el.addEventListener('change', renderShanghaiExample);
+    }
+  });
+}
+
+// ============================================================
+// CUSTOM RATES MANAGEMENT
+// ============================================================
+const CUSTOM_RATE_KEYS = ['pension_p','pension_e','medical_p','medical_e','unemployment_p','unemployment_e','injury_p','injury_e','maternity_p','maternity_e'];
+
+function toggleCustomPanel() {
+  const panel = document.getElementById('custom-rates-panel');
+  if (!panel) return;
+  if (state.city === '自定义') {
+    panel.classList.remove('hidden');
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
+function readCustomRatesFromUI() {
+  CUSTOM_RATE_KEYS.forEach(key => {
+    const el = document.getElementById('cr-' + key);
+    if (el) state.customRates[key] = parseFloat(el.value) || 0;
+  });
+  const lowerEl = document.getElementById('cr-lower');
+  const upperEl = document.getElementById('cr-upper');
+  if (lowerEl) state.customLimits.lower = parseFloat(lowerEl.value) || 0;
+  if (upperEl) state.customLimits.upper = parseFloat(upperEl.value) || 0;
+}
+
+function syncCustomRatesToUI() {
+  CUSTOM_RATE_KEYS.forEach(key => {
+    const el = document.getElementById('cr-' + key);
+    if (el) el.value = state.customRates[key];
+  });
+  const lowerEl = document.getElementById('cr-lower');
+  const upperEl = document.getElementById('cr-upper');
+  if (lowerEl) lowerEl.value = state.customLimits.lower;
+  if (upperEl) upperEl.value = state.customLimits.upper;
+}
+
+function copyPresetCityRates() {
+  const city = state.lastPresetCity || '上海';
+  const cityData = CITY_DATA[city];
+  if (!cityData) return;
+  Object.keys(cityData.rates).forEach(key => {
+    if (state.customRates.hasOwnProperty(key)) {
+      state.customRates[key] = cityData.rates[key];
+    }
+  });
+  // Also copy the latest base limits
+  const latest = cityData.bases[cityData.bases.length - 1];
+  if (latest) {
+    state.customLimits.lower = latest.lower;
+    state.customLimits.upper = latest.upper;
+  }
+  syncCustomRatesToUI();
+  saveState();
+}
+
+// Bind custom rate input change events
+CUSTOM_RATE_KEYS.forEach(key => {
+  const el = document.getElementById('cr-' + key);
+  if (el) {
+    el.addEventListener('change', () => {
+      readCustomRatesFromUI();
+      saveState();
+    });
+  }
+});
+document.getElementById('cr-lower').addEventListener('change', () => { readCustomRatesFromUI(); saveState(); });
+document.getElementById('cr-upper').addEventListener('change', () => { readCustomRatesFromUI(); saveState(); });
+document.getElementById('copy-city-rates-btn').addEventListener('click', copyPresetCityRates);
+
+// ============================================================
+// EVENT LISTENERS & INITIALIZATION
+// ============================================================
+
+// --- Initialization (MUST run first, before any user/event interactions) ---
+loadState();
+restoreUI();
+renderShanghaiExample();
+initShanghaiExampleListeners();
+
+// --- Restore embedded charts/results for a saved page ---
+// A previously-saved page ships:
+//   - state (restored in loadState → restoreUI → inputs are populated)
+//   - chartsHtml (charts-section with canvas replaced by <img>)
+//   - resultsHtml (results-section already rendered)
+//   We just need to swap the sections' innerHTML and lift their `hidden` class.
+//   No localStorage, no Chart.js needed to re-display.
+(function restoreEmbeddedSnapshotUI() {
+  if (!__EMBEDDED_FYC__) return;
+  const { chartsHtml, resultsHtml, chartsHidden, resultsHidden } = __EMBEDDED_FYC__;
+  if (chartsHtml) {
+    const c = document.getElementById('charts-section');
+    if (c) {
+      c.outerHTML = chartsHtml;
+      // outerHTML replaces in DOM; re-query to un-hide the newly inserted element
+      const nc = document.getElementById('charts-section');
+      if (nc && !chartsHidden) nc.classList.remove('hidden');
+    }
+  }
+  if (resultsHtml) {
+    const r = document.getElementById('results-section');
+    if (r) {
+      r.outerHTML = resultsHtml;
+      const nr = document.getElementById('results-section');
+      if (nr && !resultsHidden) nr.classList.remove('hidden');
+    }
+  }
+})();
+
+// --- City change ---
+document.getElementById('city-select').addEventListener('change', () => {
+  if (window.__restoreUIRunning) return;
+  const val = document.getElementById('city-select').value;
+  if (val !== '自定义') {
+    state.lastPresetCity = val;
+  }
+  state.city = val;
+  updateCityTip();
+  toggleCustomPanel();
+  saveState();
+});
+
+// --- Start date change: auto-generate initial records if timelines are empty ---
+document.getElementById('start-date-select').addEventListener('change', () => {
+  if (window.__restoreUIRunning) return;
+  const newDate = document.getElementById('start-date-select').value;
+  state.startDate = newDate;
+  if (newDate) {
+    const salContainer = document.getElementById('salary-timeline');
+    const siContainer = document.getElementById('si-base-timeline');
+    const fundContainer = document.getElementById('fund-base-timeline');
+
+    // If a timeline is empty or only has one blank row (no date), treat it as "needs auto-fill"
+    const isEmpty = (container) => {
+      if (!container.children.length) return true;
+      if (container.children.length === 1) {
+        const mi = container.querySelector('input[type="month"]');
+        return !mi || !mi.value;
+      }
+      return false;
+    };
+
+    if (isEmpty(salContainer) && isEmpty(siContainer) && isEmpty(fundContainer)) {
+      // All three timelines are effectively empty → auto-generate one record each
+      salContainer.innerHTML = '';
+      siContainer.innerHTML = '';
+      fundContainer.innerHTML = '';
+
+      addSalaryRow(newDate, '', true, true);
+      sortTimelineContainer(salContainer);
+
+      const limits = getCityBaseLimits(state.city, newDate);
+      addSIBaseRow(newDate, limits.lower, undefined, true, true);
+      sortTimelineContainer(siContainer);
+
+      const fundMin = FUND_MIN_BASES[state.city] || 2500;
+      addFundBaseRow(newDate, fundMin, state.fundRate, true, true);
+      sortTimelineContainer(fundContainer);
+    } else {
+      // Timelines already have dated records → update first record date in each
+      const salRow = salContainer.querySelector('input[type="month"]');
+      if (salRow) salRow.value = newDate;
+      const siRow = siContainer.querySelector('input[type="month"]');
+      if (siRow) siRow.value = newDate;
+      const fundRow = fundContainer.querySelector('input[type="month"]');
+      if (fundRow) fundRow.value = newDate;
+    }
+  }
+  saveState();
+});
+
+// --- End date change ---
+document.getElementById('end-date-select').addEventListener('change', () => {
+  if (window.__restoreUIRunning) return;
+  state.endDate = document.getElementById('end-date-select').value;
+  saveState();
+});
+</script>
+
+</body>
+</html>
