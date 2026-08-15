@@ -320,11 +320,15 @@ input[type="month"], input[type="number"], select {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
             <h4 class="text-slate-300 text-sm font-bold mb-3 text-center">少缴构成</h4>
-            <canvas id="ex-bar-chart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+            <div style="position: relative; height: 260px; width: 100%;">
+              <canvas id="ex-bar-chart"></canvas>
+            </div>
           </div>
           <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
             <h4 class="text-slate-300 text-sm font-bold mb-3 text-center">每月差额构成</h4>
-            <canvas id="ex-doughnut-chart" height="0" style="display: block; box-sizing: border-box; height: 0px; width: 0px;" width="0"></canvas>
+            <div style="position: relative; height: 260px; width: 100%;">
+              <canvas id="ex-doughnut-chart"></canvas>
+            </div>
           </div>
         </div>
 
@@ -2348,6 +2352,15 @@ function toggleExDetail() {
   section.classList.toggle('hidden');
   icon.style.transform = isHidden ? 'rotate(180deg)' : '';
   label.textContent = isHidden ? '收起详细明细' : '展开详细明细';
+  // Charts were initialized while the section was hidden (display:none), so the
+  // canvas had 0 dimensions. After revealing, force Chart.js to re-measure so the
+  // charts render at the container's fixed height (260px) instead of stretching.
+  if (isHidden) {
+    requestAnimationFrame(function() {
+      if (exBarChartInstance) { exBarChartInstance.resize(); }
+      if (exDoughnutChartInstance) { exDoughnutChartInstance.resize(); }
+    });
+  }
 }
 
 // Attach event listeners to example card inputs
