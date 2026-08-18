@@ -101,7 +101,7 @@ input[type="month"], input[type="number"], select {
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-2xl font-black tracking-tight">FuckYourCompany</h1>
-            <span class="badge bg-rose-500/20 text-rose-300 border border-rose-500/30">V 0.0.1</span>
+            <span class="badge bg-rose-500/20 text-rose-300 border border-rose-500/30">V 0.0.2</span>
           </div>
           <p class="text-slate-400 text-sm mt-0.5 tracking-wide">社保公积金欠缴计算器 · 守护你的每一分钱</p>
         </div>
@@ -133,6 +133,29 @@ input[type="month"], input[type="number"], select {
           <div class="bg-white/5 rounded-xl p-4 border border-amber-400/30">
             <label class="block text-amber-400 text-xs mb-1.5 font-bold tracking-wider uppercase">税前月薪</label>
             <input type="number" id="ex-input-salary" value="15000" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/30 rounded-lg px-4 py-3 text-white font-mono text-2xl font-bold focus:outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/30 transition">
+            <!-- 其他收入明细（折叠） -->
+            <details class="mt-3">
+              <summary class="text-xs text-slate-400 cursor-pointer hover:text-slate-300 select-none">其他收入明细（奖金/津贴/补贴等）</summary>
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <div>
+                  <label class="block text-slate-400 text-xs mb-0.5">奖金</label>
+                  <input type="number" id="ex-input-bonus" value="0" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/20 rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-amber-400/40 transition">
+                </div>
+                <div>
+                  <label class="block text-slate-400 text-xs mb-0.5">津贴</label>
+                  <input type="number" id="ex-input-allowance" value="0" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/20 rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-amber-400/40 transition">
+                </div>
+                <div>
+                  <label class="block text-slate-400 text-xs mb-0.5">补贴</label>
+                  <input type="number" id="ex-input-subsidy" value="0" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/20 rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-amber-400/40 transition">
+                </div>
+                <div>
+                  <label class="block text-slate-400 text-xs mb-0.5">其他</label>
+                  <input type="number" id="ex-input-other" value="0" min="0" step="100" class="w-full bg-slate-800/80 border border-amber-400/20 rounded-lg px-2 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-amber-400/40 transition">
+                </div>
+              </div>
+              <p class="text-xs text-slate-500 mt-1.5">月收入总额 = 工资 + 奖金 + 津贴 + 补贴 + 其他（政策核定基数以此为准）</p>
+            </details>
           </div>
           <!-- 全额基数 vs 最低基数 两栏对比 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -424,10 +447,80 @@ input[type="month"], input[type="number"], select {
       </div>
     </div>
     <p class="text-xs text-slate-400 mt-3 leading-relaxed">
-      <span class="text-amber-500 font-medium">提示：</span>上海入离职当月不足一个月是否需要缴纳社保和公积金存在争议。本工具默认按全月计算（即入职/离职当月也计为完整缴纳月），如实际情况为未缴纳，请手动删除该月记录。
+      <span class="text-amber-500 font-medium">提示：</span><span id="cityRule-warn">上海</span>入离职当月不足一个月是否需要缴纳社保和公积金存在争议。本工具默认按全月计算（即入职/离职当月也计为完整缴纳月），如实际情况为未缴纳，请手动删除该月记录。
     </p>
 
-    <div class="mt-3 flex flex-wrap items-center gap-3">
+    <!-- Base Rule Panel -->
+    <div class="mt-4 border border-blue-200 bg-blue-50/50 rounded-xl p-4 space-y-3">
+      <h4 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3c.419 0 1.125-.231 1.75-.625a4.3 4.3 0 001.5-1.875c.4-.875.5-1.75.5-2.5 0-.625-.125-1.25-.375-1.875a4.3 4.3 0 00-1.5-1.875A4.3 4.3 0 0012 6c-.625 0-1.25.125-1.875.375A4.3 4.3 0 008.25 7.875c-.4.875-.5 1.75-.5 2.5 0 .625.125 1.25.375 1.875a4.3 4.3 0 001.5 1.875c.625.394 1.331.625 1.75.625z"></path></svg>
+        基数核定规则
+      </h4>
+      <p class="text-xs text-slate-500 leading-relaxed">按<span id="cityRule-policy">上海</span>政策，住房公积金/社保缴存基数应按职工本人上一年度月平均工资确定（每年<span id="cityRule-adjMonth">7</span>月统一调整）。包括工资、奖金、津贴、补贴等全部计入工资总额统计的项目。</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">职工入职类型</label>
+          <select id="emp-type-select" onchange="toggleEmployeeType(); saveState();" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+            <option value="normal">普通职工</option>
+            <option value="new_hire">新参加工作</option>
+            <option value="transferred_in">新调入</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">基数调整月</label>
+          <div class="flex items-center h-[38px] px-3 border border-slate-200 rounded-lg bg-slate-50 text-sm text-slate-600">每年 <span id="cityRule-adjMonth2">7</span> 月（<span id="cityRule-policy2">上海</span>标准）</div>
+        </div>
+      </div>
+
+      <!-- New hire sub-options (shown only when employeeType=new_hire) -->
+      <div id="new-hire-options" style="display:none" class="border-t border-blue-100 pt-3">
+        <label class="block text-xs font-medium text-slate-500 mb-2">首月基数来源（新参加工作）</label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <input type="radio" name="new-hire-base" value="2nd_month" onchange="saveState()" class="accent-blue-500"> 参加工作第二个月当月工资
+          </label>
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <input type="radio" name="new-hire-base" value="avg_since_join" onchange="saveState()" class="accent-blue-500"> 参加工作以来实际发放月平均工资
+          </label>
+        </div>
+      </div>
+
+      <!-- Transfer sub-options (shown only when employeeType=transferred_in) -->
+      <div id="transfer-options" style="display:none" class="border-t border-blue-100 pt-3">
+        <label class="block text-xs font-medium text-slate-500 mb-2">调入基数来源（新调入）</label>
+        <div class="flex flex-wrap gap-3">
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <input type="radio" name="transfer-base" value="first_month" onchange="saveState()" class="accent-blue-500"> 调入后发放当月工资
+          </label>
+          <label class="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+            <input type="radio" name="transfer-base" value="avg_since_transfer" onchange="saveState()" class="accent-blue-500"> 调入后实际发放月平均工资
+          </label>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-blue-100 pt-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">社保基数核定方式</label>
+          <select id="si-base-rule" onchange="saveState()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none">
+            <option value="auto">自动（按政策推算上年度月均）</option>
+            <option value="current_month">按当月收入总额</option>
+            <option value="manual">完全手动（下方社保基数记录优先）</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1">公积金基数核定方式</label>
+          <select id="fund-base-rule" onchange="saveState()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none">
+            <option value="auto">自动（按政策推算上年度月均）</option>
+            <option value="current_month">按当月收入总额</option>
+            <option value="manual">完全手动（下方公积金基数记录优先）</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Scope (moved below Base Rule Panel) -->
+    <div class="mt-4 flex flex-wrap items-center gap-3">
       <label class="text-xs font-medium text-slate-600 whitespace-nowrap">查看范围：</label>
       <div class="inline-flex rounded-lg border border-slate-200 overflow-hidden text-xs">
         <button onclick="setViewScope('all')" id="scope-all" class="px-3 py-1.5 font-medium transition bg-slate-700 text-white whitespace-nowrap">全部</button>
@@ -510,12 +603,12 @@ input[type="month"], input[type="number"], select {
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
           <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black">薪</span>
-          工资记录
+          工资收入明细
         </h3>
         <button onclick="addSalaryRow()" class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-medium transition whitespace-nowrap">+ 添加</button>
       </div>
       <div id="salary-timeline" class="space-y-2"></div>
-      <p class="text-xs text-slate-400 mt-3">填写每个时期的税前月薪，系统自动按时间排序</p>
+      <p class="text-xs text-slate-400 mt-3">填写每个月的工资总额（含工资、奖金、津贴、补贴等全部计入工资总额统计的项目）。系统按政策自动推算各月应缴基数，可在"社保基数"和"公积金基数"中手动覆盖。</p>
     </section>
 
     <!-- Social Insurance Base Timeline -->
@@ -756,7 +849,7 @@ let state = {
   fundRate: 7,
   startDate: '',   // set in init
   endDate: '',     // set in init
-  salaries: [],       // [{date:'2024-01', amount:15000}]
+  salaries: [],       // [{date:'2024-01', baseSalary:15000, bonus:0, allowance:0, subsidy:0, other:0, totalIncome:15000}]
   siBases: [],        // [{date:'2024-01', amount:12307}]
   fundBases: [],      // [{date:'2024-01', amount:12307, rate:7}]
   customRates: { pension_p: 8, pension_e: 16, medical_p: 2, medical_e: 9.5, unemployment_p: 0.5, unemployment_e: 0.5, injury_p: 0, injury_e: 0.26, maternity_p: 0, maternity_e: 0, fund_p: 7, fund_e: 7 },
@@ -764,6 +857,13 @@ let state = {
   lastPresetCity: '上海',
   autoGenerated: false,
   viewScope: 'all', // 'all' | 'si' | 'fund'
+  // 基数核定规则
+  employeeType: 'normal',           // 'normal' | 'new_hire' | 'transferred_in'
+  newHireBaseSource: '2nd_month',   // '2nd_month' | 'avg_since_join'
+  transferBaseSource: 'first_month',// 'first_month' | 'avg_since_transfer'
+  siBaseRule: 'auto',               // 'auto' | 'current_month' | 'manual'
+  fundBaseRule: 'auto',             // 'auto' | 'current_month' | 'manual'
+  baseAdjustMonth: 7,               // 每年几月份统一调整基数（上海=7）
 };
 
 // Default fund minimum bases per city
@@ -851,24 +951,65 @@ function sortTimelineContainer(container) {
   for (const c of children) container.appendChild(c);
 }
 
-function addSalaryRow(date, amount, skipSort, skipSave) {
+function addSalaryRow(date, data, skipSort, skipSave) {
+  // data: undefined, number (old compat), or {baseSalary, bonus, allowance, subsidy, other}
+  let baseSalary = 0, bonus = 0, allowance = 0, subsidy = 0, other = 0;
+  if (typeof data === 'number') {
+    baseSalary = data;
+  } else if (data && typeof data === 'object') {
+    baseSalary = data.baseSalary || 0;
+    bonus = data.bonus || 0;
+    allowance = data.allowance || 0;
+    subsidy = data.subsidy || 0;
+    other = data.other || 0;
+  }
   const id = ++rowId;
   const container = document.getElementById('salary-timeline');
   const div = document.createElement('div');
-  div.className = 'timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0';
+  div.className = 'timeline-row p-2 rounded-lg border border-slate-100 min-w-0';
   div.dataset.id = id;
+  // 基本工资保持空框让用户填写；奖金/津贴/补贴/其他默认显示 0
+  const baseSalaryVal = (baseSalary === undefined || baseSalary === null || baseSalary === 0) ? '' : baseSalary;
+  const bonusVal     = (bonus === undefined || bonus === null) ? 0 : bonus;
+  const allowanceVal = (allowance === undefined || allowance === null) ? 0 : allowance;
+  const subsidyVal   = (subsidy === undefined || subsidy === null) ? 0 : subsidy;
+  const otherVal     = (other === undefined || other === null) ? 0 : other;
+  const total = +((baseSalary || 0) + (bonus || 0) + (allowance || 0) + (subsidy || 0) + (other || 0)).toFixed(2);
   div.innerHTML = `
-    <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
-    <input type="number" value="${amount || ''}" placeholder="税前月薪" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none" min="0">
-    <button onclick="this.parentElement.remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-    </button>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-36 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+      <input type="number" data-field="baseSalary" value="${baseSalaryVal}" placeholder="基本工资" class="w-28 border border-blue-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-400 outline-none" min="0">
+      <input type="number" data-field="bonus" value="${bonusVal}" placeholder="奖金" class="w-24 border border-amber-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none" min="0">
+      <input type="number" data-field="allowance" value="${allowanceVal}" placeholder="津贴" class="w-24 border border-emerald-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none" min="0">
+      <input type="number" data-field="subsidy" value="${subsidyVal}" placeholder="补贴" class="w-24 border border-purple-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none" min="0">
+      <input type="number" data-field="other" value="${otherVal}" placeholder="其他" class="w-24 border border-slate-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-slate-400 outline-none" min="0">
+      <span class="salary-total text-xs font-bold text-slate-600 ml-auto whitespace-nowrap">合计 <span class="text-blue-600">${fmtNum(total)}</span></span>
+      <button onclick="this.closest('.timeline-row').remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </button>
+    </div>
   `;
   container.appendChild(div);
-  div.querySelectorAll('input').forEach(inp => inp.addEventListener('change', () => {
+
+  // Real-time total update on any income field change
+  const updateTotal = () => {
+    const inputs = div.querySelectorAll('input[data-field]');
+    let sum = 0;
+    inputs.forEach(inp => { sum += parseFloat(inp.value) || 0; });
+    const totalEl = div.querySelector('.salary-total span');
+    if (totalEl) totalEl.textContent = fmtNum(+sum.toFixed(2));
+  };
+  div.querySelectorAll('input[data-field]').forEach(inp => {
+    inp.addEventListener('input', updateTotal);
+    inp.addEventListener('change', () => {
+      saveState();
+      sortTimelineContainer(container);
+    });
+  });
+  div.querySelector('input[type="month"]').addEventListener('change', () => {
     saveState();
     sortTimelineContainer(container);
-  }));
+  });
   if (!skipSort) sortTimelineContainer(container);
   if (!skipSave) saveState();
 }
@@ -879,6 +1020,13 @@ function addSIBaseRow(date, amount, rates, skipSort, skipSave) {
   const wrapper = document.createElement('div');
   wrapper.className = 'si-base-wrapper';
   wrapper.dataset.id = id;
+
+  // 未指定 amount 时默认填充当前城市的最低标准
+  const monthForLimit = date || getCurrentMonth();
+  if (amount === undefined || amount === null || amount === 0 || amount === '') {
+    const limits = getCityBaseLimits(state.city, monthForLimit);
+    amount = limits.lower || 0;
+  }
 
   const r = rates || {};
   // Get current city default rates for comparison
@@ -907,7 +1055,7 @@ function addSIBaseRow(date, amount, rates, skipSort, skipSave) {
   wrapper.innerHTML = `
     <div class="timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0">
       <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none">
-      <input type="number" value="${amount || ''}" placeholder="社保基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none" min="0">
+      <input type="number" value="${amount}" placeholder="社保基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-emerald-400 outline-none" min="0">
       <button class="shrink-0 si-rate-toggle text-slate-300 hover:text-emerald-500 transition px-2 py-1 rounded border border-slate-200 hover:border-emerald-300 text-[10px] leading-none flex items-center gap-1 whitespace-nowrap" type="button"><span>⚙</span><span class="text-slate-400 hover:text-emerald-500">调整各险缴费费率</span></button>
       <button onclick="this.closest('.si-base-wrapper').remove(); saveState();" class="shrink-0 text-slate-300 hover:text-rose-500 transition p-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -964,9 +1112,15 @@ function addFundBaseRow(date, amount, rate, skipSort, skipSave) {
   const div = document.createElement('div');
   div.className = 'timeline-row flex flex-wrap items-center gap-2 p-2 rounded-lg border border-slate-100 min-w-0';
   div.dataset.id = id;
+
+  // 未指定 amount 时默认填充当前城市的公积金最低标准
+  if (amount === undefined || amount === null || amount === 0 || amount === '') {
+    amount = FUND_MIN_BASES[state.city] || 2500;
+  }
+
   div.innerHTML = `
     <input type="month" value="${date || getCurrentMonth()}" class="shrink-0 w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none">
-    <input type="number" value="${amount || ''}" placeholder="公积金基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none" min="0">
+    <input type="number" value="${amount}" placeholder="公积金基数" class="flex-1 min-w-[120px] border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none" min="0">
     <select class="shrink-0 w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-400 outline-none">
       ${[5,6,7,8,9,10,11,12].map(r => `<option value="${r}" ${(rate||state.fundRate)==r?'selected':''}>${r}%</option>`).join('')}
     </select>
@@ -1012,12 +1166,29 @@ function readState() {
     readCustomRatesFromUI();
   }
 
+  // Read base rule settings from UI
+  const empTypeEl = document.getElementById('emp-type-select');
+  if (empTypeEl) state.employeeType = empTypeEl.value;
+  const newHireEl = document.querySelector('input[name="new-hire-base"]:checked');
+  if (newHireEl) state.newHireBaseSource = newHireEl.value;
+  const transferEl = document.querySelector('input[name="transfer-base"]:checked');
+  if (transferEl) state.transferBaseSource = transferEl.value;
+  const siRuleEl = document.getElementById('si-base-rule');
+  if (siRuleEl) state.siBaseRule = siRuleEl.value;
+  const fundRuleEl = document.getElementById('fund-base-rule');
+  if (fundRuleEl) state.fundBaseRule = fundRuleEl.value;
+
   state.salaries = [];
   document.querySelectorAll('#salary-timeline .timeline-row').forEach(row => {
     const inputs = row.querySelectorAll('input');
     const date = inputs[0].value;
-    const amount = parseFloat(inputs[1].value) || 0;
-    if (date && amount > 0) state.salaries.push({ date, amount });
+    const baseSalary = parseFloat(inputs[1].value) || 0;
+    const bonus = parseFloat(inputs[2]?.value) || 0;
+    const allowance = parseFloat(inputs[3]?.value) || 0;
+    const subsidy = parseFloat(inputs[4]?.value) || 0;
+    const other = parseFloat(inputs[5]?.value) || 0;
+    const totalIncome = +(baseSalary + bonus + allowance + subsidy + other).toFixed(2);
+    if (date && totalIncome > 0) state.salaries.push({ date, baseSalary, bonus, allowance, subsidy, other, totalIncome });
   });
 
   state.siBases = [];
@@ -1089,6 +1260,8 @@ function loadState() {
     try {
       state = { ...state, ...__EMBEDDED_FYC__.stateSnapshot };
     } catch(e) {}
+    // 迁移旧数据格式（兼容旧版本保存的页面）
+    _migrateStateIfNeeded();
     return;
   }
   // Normal (non-saved) page — previous behaviour.
@@ -1102,6 +1275,42 @@ function loadState() {
   // 日期每次打开都留空，由用户手动填写
   state.startDate = '';
   state.endDate = '';
+  // 迁移旧数据格式
+  _migrateStateIfNeeded();
+}
+
+function _migrateStateIfNeeded() {
+  // 旧 salary 记录有 amount 无 baseSalary → 迁移为新结构
+  state.salaries = state.salaries.map(s => {
+    if (s.amount !== undefined && s.baseSalary === undefined) {
+      return {
+        date: s.date,
+        baseSalary: s.amount,
+        bonus: 0, allowance: 0, subsidy: 0, other: 0,
+        totalIncome: s.amount,
+      };
+    }
+    // 确保所有字段都存在
+    if (s.baseSalary !== undefined) {
+      return {
+        date: s.date,
+        baseSalary: s.baseSalary || 0,
+        bonus: s.bonus || 0,
+        allowance: s.allowance || 0,
+        subsidy: s.subsidy || 0,
+        other: s.other || 0,
+        totalIncome: s.totalIncome !== undefined ? s.totalIncome : +((s.baseSalary||0) + (s.bonus||0) + (s.allowance||0) + (s.subsidy||0) + (s.other||0)).toFixed(2),
+      };
+    }
+    return s;
+  });
+  // 给 state 补默认值（新增字段不会出现在旧 localStorage 中）
+  state.employeeType       = state.employeeType       || 'normal';
+  state.newHireBaseSource  = state.newHireBaseSource  || '2nd_month';
+  state.transferBaseSource = state.transferBaseSource || 'first_month';
+  state.siBaseRule         = state.siBaseRule         || 'auto';
+  state.fundBaseRule       = state.fundBaseRule       || 'auto';
+  state.baseAdjustMonth    = state.baseAdjustMonth    || 7;
 }
 
 function restoreUI() {
@@ -1114,6 +1323,7 @@ function restoreUI() {
     toggleCustomPanel();
     syncCustomRatesToUI();
     setViewScope(state.viewScope || 'all', true);
+    restoreBaseRuleUI();
 
     // 关键修复：判断是否需要基于入职日期自动生成记录
     // 条件：state.startDate 存在，且三条记录数组都为空
@@ -1125,12 +1335,12 @@ function restoreUI() {
     // Restore salary rows
     document.getElementById('salary-timeline').innerHTML = '';
     if (needAutoGenerate) {
-      addSalaryRow(state.startDate, '', true, true);
+      addSalaryRow(state.startDate, undefined, true, true);
       sortTimelineContainer(document.getElementById('salary-timeline'));
     } else if (state.salaries.length === 0) {
       addSalaryRow(undefined, undefined, false, true);
     } else {
-      state.salaries.forEach(s => addSalaryRow(s.date, s.amount, true, true));
+      state.salaries.forEach(s => addSalaryRow(s.date, s, true, true));
       sortTimelineContainer(document.getElementById('salary-timeline'));
     }
 
@@ -1176,10 +1386,141 @@ function updateCityTip() {
   el.textContent = cityData ? `${city}每年${cityData.adjMonth}调整社保基数` : '';
 }
 
+// 切换城市时更新 3 处硬编码城市文本
+function updateCityRuleTexts() {
+  const city = state.city;
+  const custom = city === '自定义';
+  // 入离职提示
+  const warnEl = document.getElementById('cityRule-warn');
+  if (warnEl) warnEl.textContent = custom ? '各地' : city;
+  // 政策说明
+  const policyEls = ['cityRule-policy', 'cityRule-policy2'];
+  policyEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = custom ? '当地' : city;
+  });
+  // 调整月（只在预设城市有确切 adjMonth 时更新；自定义时保持默认 7）
+  const cityData = CITY_DATA[city];
+  const adjNum = (cityData && cityData.adjMonth)
+    ? parseInt(String(cityData.adjMonth).replace('月', ''))
+    : 7;
+  const adjEls = ['cityRule-adjMonth', 'cityRule-adjMonth2'];
+  adjEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(adjNum);
+  });
+  // 同步 state.baseAdjustMonth
+  state.baseAdjustMonth = adjNum;
+}
+
+// ============================================================
+// BASE DERIVATION ENGINE — 按政策推算核定基数
+// ============================================================
+
+// 返回该月所属调整周期对应的"上一年度"自然年
+// 上海7月调整：2024-07~2025-06 周期 → 上一年度=2023
+function _getPrevYearForBase(month) {
+  const [y, m] = month.split('-').map(Number);
+  const adjMonth = state.baseAdjustMonth || 7;
+  if (m >= adjMonth) return y - 1;  // e.g., 2024-07 → 2023
+  return y - 2;                      // e.g., 2024-06 → 2022
+}
+
+// 计算指定自然年(1-12月)所有工资记录的月平均收入
+function _calcAnnualAvgIncome(year) {
+  const yearStr = String(year);
+  const records = state.salaries.filter(s => s.date && s.date.startsWith(yearStr));
+  if (records.length === 0) return 0;
+  const total = records.reduce((sum, s) => sum + (s.totalIncome || 0), 0);
+  return +(total / records.length).toFixed(2);
+}
+
+// 计算 [startMonth, endExclusiveMonth) 区间内的月平均收入
+function _calcAvgSince(startMonth, endExclusiveMonth) {
+  const records = state.salaries.filter(s =>
+    s.date && s.date >= startMonth && s.date < endExclusiveMonth
+  );
+  if (records.length === 0) return 0;
+  const total = records.reduce((sum, s) => sum + (s.totalIncome || 0), 0);
+  return +(total / records.length).toFixed(2);
+}
+
+// 主入口：推算某月某类型的核定基数（未 clamp）
+// type: 'si' | 'fund'
+// 返回: { value, source } — source 描述推算来源
+function _deriveBaseForMonth(month, type) {
+  const rule = type === 'si' ? state.siBaseRule : state.fundBaseRule;
+
+  // 完全手动模式 → 返回 0，让手动记录接管
+  if (rule === 'manual') return { value: 0, source: 'manual' };
+
+  // 按当月收入总额
+  if (rule === 'current_month') {
+    const rec = state.salaries.find(s => s.date <= month);
+    if (!rec) return { value: 0, source: 'no_data' };
+    // 如果所有记录都在 month 之后，回退到最旧记录
+    const actualRec = rec || (state.salaries.length > 0 ? state.salaries[state.salaries.length - 1] : null);
+    return { value: actualRec ? (actualRec.totalIncome || 0) : 0, source: 'current_month' };
+  }
+
+  // 自动模式：按政策推算
+  const empType = state.employeeType || 'normal';
+  const joinDate = state.startDate;
+
+  // 新参加工作
+  if (empType === 'new_hire' && joinDate) {
+    if (state.newHireBaseSource === '2nd_month') {
+      // 参加工作第二个月当月工资
+      const secondMonth = addMonths(joinDate, 1);
+      const rec = state.salaries.find(s => s.date === secondMonth);
+      if (rec) return { value: rec.totalIncome || 0, source: 'new_hire_2nd_month' };
+      // 回退
+      const curRec = state.salaries.find(s => s.date <= month);
+      return { value: curRec ? (curRec.totalIncome || 0) : 0, source: 'new_hire_fallback' };
+    } else {
+      // 参加工作以来实际发放月平均工资
+      const avg = _calcAvgSince(joinDate, month);
+      if (avg > 0) return { value: avg, source: 'new_hire_avg' };
+      // 回退到当月收入
+      const curRec = state.salaries.find(s => s.date <= month);
+      return { value: curRec ? (curRec.totalIncome || 0) : 0, source: 'new_hire_avg_fallback' };
+    }
+  }
+
+  // 新调入
+  if (empType === 'transferred_in' && joinDate) {
+    if (state.transferBaseSource === 'first_month') {
+      // 调入后发放当月工资
+      const rec = state.salaries.find(s => s.date === joinDate);
+      if (rec) return { value: rec.totalIncome || 0, source: 'transfer_first_month' };
+      const curRec = state.salaries.find(s => s.date <= month);
+      return { value: curRec ? (curRec.totalIncome || 0) : 0, source: 'transfer_fallback' };
+    } else {
+      // 调入后实际发放月平均工资
+      const avg = _calcAvgSince(joinDate, month);
+      if (avg > 0) return { value: avg, source: 'transfer_avg' };
+      const curRec = state.salaries.find(s => s.date <= month);
+      return { value: curRec ? (curRec.totalIncome || 0) : 0, source: 'transfer_avg_fallback' };
+    }
+  }
+
+  // 普通职工：按上一年度月平均工资
+  const prevYear = _getPrevYearForBase(month);
+  const annualAvg = _calcAnnualAvgIncome(prevYear);
+  if (annualAvg > 0) {
+    return { value: annualAvg, source: `annual_avg_${prevYear}` };
+  }
+
+  // 回退：没有上一年度数据时，用当月收入
+  const curRec = state.salaries.find(s => s.date <= month);
+  const actualRec = curRec || (state.salaries.length > 0 ? state.salaries[state.salaries.length - 1] : null);
+  return { value: actualRec ? (actualRec.totalIncome || 0) : 0, source: 'fallback_current' };
+}
+
 // ============================================================
 // CALCULATION ENGINE
 // ============================================================
-function calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates) {
+function calcMonthly(totalIncome, derivedSIBase, derivedFundBase, actualSIBase, actualFundBase, fundRate, limits, siRates, siBaseSource, fundBaseSource) {
   const cityR = state.city === '自定义' ? state.customRates : CITY_DATA[state.city].rates;
   // Use per-row siRates if provided, otherwise city defaults
   const r = siRates ? { ...cityR, ...siRates } : cityR;
@@ -1187,14 +1528,15 @@ function calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates) {
   const fp = fundRate / 100;
   const fe = fundRate / 100;
 
-  // Required base (clamped to salary within limits)
-  const requiredSIBase = Math.min(Math.max(salary, limits.lower), limits.upper);
-  // Fund base uses same limits
-  const requiredFundBase = Math.min(Math.max(salary, limits.lower), limits.upper);
+  // Required base (clamped to derived base within limits, fallback to totalIncome)
+  const siBaseForCalc = derivedSIBase || totalIncome;
+  const fundBaseForCalc = derivedFundBase || totalIncome;
+  const requiredSIBase = Math.min(Math.max(siBaseForCalc, limits.lower), limits.upper);
+  const requiredFundBase = Math.min(Math.max(fundBaseForCalc, limits.lower), limits.upper);
 
   // Actual bases
-  const actualSIBase = siBase;
-  const actualFundBase = fundBase;
+  const actualSIBaseCalc = actualSIBase;
+  const actualFundBaseCalc = actualFundBase;
 
   const types = [
     { name: '养老保险', pRate: r.pension_p / 100, eRate: r.pension_e / 100, isFund: false },
@@ -1207,7 +1549,7 @@ function calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates) {
 
   const details = types.map(t => {
     const reqBase = t.isFund ? requiredFundBase : requiredSIBase;
-    const actBase = t.isFund ? actualFundBase : actualSIBase;
+    const actBase = t.isFund ? actualFundBaseCalc : actualSIBaseCalc;
     const reqP = +(reqBase * t.pRate).toFixed(2);
     const reqE = +(reqBase * t.eRate).toFixed(2);
     const actP = +(actBase * t.pRate).toFixed(2);
@@ -1226,11 +1568,15 @@ function calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates) {
   const totalActE = +details.reduce((s, d) => s + d.actE, 0).toFixed(2);
 
   return {
-    salary,
+    totalIncome,
+    derivedSIBase,
+    derivedFundBase,
+    siBaseSource,
+    fundBaseSource,
     requiredSIBase,
-    actualSIBase,
+    actualSIBase: actualSIBaseCalc,
     requiredFundBase,
-    actualFundBase,
+    actualFundBase: actualFundBaseCalc,
     details,
     totalReqP, totalReqE, totalActP, totalActE,
     diffP: +(totalReqP - totalActP).toFixed(2),
@@ -1268,32 +1614,38 @@ function calculate() {
   const summaryByType = {};
 
   for (const month of months) {
-    // Get salary for this month (latest salary record <= month)
+    // Get salary/income for this month (latest salary record <= month)
     const salaryRec = state.salaries.find(s => s.date <= month);
     if (!salaryRec) continue;
-    const salary = salaryRec.amount;
+    const totalIncome = salaryRec.totalIncome || 0;
 
-    // Get SI base for this month (with fallback to oldest if all records > month)
+    // 推算核定基数（当无手动记录时使用）
+    const siDerived = _deriveBaseForMonth(month, 'si');
+    const fundDerived = _deriveBaseForMonth(month, 'fund');
+
+    // Get SI base: manual record takes priority over derived
     const siRec = (() => {
       let r = state.siBases.find(s => s.date <= month);
       if (!r && state.siBases.length > 0) r = state.siBases[state.siBases.length - 1];
       return r;
     })();
-    const siBase = siRec ? siRec.amount : 0;
+    const siBase = siRec ? siRec.amount : siDerived.value;
     const siRates = siRec ? siRec.rates : null;
+    const siBaseSource = siRec ? 'manual' : siDerived.source;
 
-    // Get fund base for this month (with fallback to oldest if all records > month)
+    // Get fund base: manual record takes priority over derived
     const fundRec = (() => {
       let r = state.fundBases.find(s => s.date <= month);
       if (!r && state.fundBases.length > 0) r = state.fundBases[state.fundBases.length - 1];
       return r;
     })();
-    const fundBase = fundRec ? fundRec.amount : 0;
+    const fundBase = fundRec ? fundRec.amount : fundDerived.value;
     const fundRate = fundRec ? fundRec.rate : state.fundRate;
+    const fundBaseSource = fundRec ? 'manual' : fundDerived.source;
 
     const limits = getCityBaseLimits(state.city, month);
 
-    const result = calcMonthly(salary, siBase, fundBase, fundRate, limits, siRates);
+    const result = calcMonthly(totalIncome, siDerived.value, fundDerived.value, siBase, fundBase, fundRate, limits, siRates, siBaseSource, fundBaseSource);
 
     monthlyResults.push({ month, ...result });
 
@@ -1408,7 +1760,7 @@ function renderResults(monthly, summary, gReqP, gReqE, gActP, gActE, gDiffP, gDi
   // Helper: compare two monthly results (inputs + outputs)
   function isSameMonthResult(a, b) {
     if (!a || !b) return false;
-    if (a.salary !== b.salary) return false;
+    if (a.totalIncome !== b.totalIncome) return false;
     if (a.requiredSIBase !== b.requiredSIBase) return false;
     if (a.actualSIBase !== b.actualSIBase) return false;
     if (a.requiredFundBase !== b.requiredFundBase) return false;
@@ -1455,13 +1807,15 @@ function renderResults(monthly, summary, gReqP, gReqE, gActP, gActE, gDiffP, gDi
     // Flush any accumulated "与上月相同" batch before rendering the new month
     flushSameMonths();
 
-    // Month header row (spans all columns, shows month + salary + bases summary)
+    // Month header row (spans all columns, shows month + income + bases summary)
+    const siDerivedTag = r.siBaseSource && r.siBaseSource !== 'manual' ? ' <span class="text-xs text-slate-400 font-normal italic">(推算)</span>' : '';
+    const fundDerivedTag = r.fundBaseSource && r.fundBaseSource !== 'manual' ? ' <span class="text-xs text-slate-400 font-normal italic">(推算)</span>' : '';
     const headerTr = document.createElement('tr');
     headerTr.className = 'border-t-2 border-slate-200 bg-slate-50/70 font-semibold';
     headerTr.innerHTML = `
       <td class="px-4 py-2 text-slate-700" colspan="4">
         ${r.month}
-        <span class="ml-3 text-slate-400 font-normal">工资 ${fmtNum(r.salary)} · 应缴基数 ${fmtNum(r.requiredSIBase)} · 实缴基数 ${fmtNum(r.actualSIBase)}</span>
+        <span class="ml-3 text-slate-400 font-normal">收入 ${fmtNum(r.totalIncome)} · 应缴基数 ${fmtNum(r.requiredSIBase)}${siDerivedTag} · 实缴基数 ${fmtNum(r.actualSIBase)}</span>
       </td>
       <td class="px-3 py-2 text-right font-mono text-slate-400" colspan="6"></td>
     `;
@@ -2085,7 +2439,23 @@ function renderShanghaiExample() {
 
   // Read editable inputs
   const salary     = parseFloat(document.getElementById('ex-input-salary').value) || 0;
-  const siFullBase = parseFloat(document.getElementById('ex-input-si-full').value) || 0;
+  const bonus      = parseFloat(document.getElementById('ex-input-bonus')?.value) || 0;
+  const allowance  = parseFloat(document.getElementById('ex-input-allowance')?.value) || 0;
+  const subsidy    = parseFloat(document.getElementById('ex-input-subsidy')?.value) || 0;
+  const other      = parseFloat(document.getElementById('ex-input-other')?.value) || 0;
+  const totalIncome = salary + bonus + allowance + subsidy + other;
+  // Auto-update siFullBase/fundFullBase if they equal the previous salary-only value
+  const siFullInput   = document.getElementById('ex-input-si-full');
+  const fundFullInput = document.getElementById('ex-input-fund-full');
+  // If the full base inputs haven't been manually changed from the salary value,
+  // auto-sync them to totalIncome
+  if (siFullInput && (!siFullInput.dataset.userEdited || siFullInput.dataset.userEdited === 'false')) {
+    siFullInput.value = totalIncome;
+  }
+  if (fundFullInput && (!fundFullInput.dataset.userEdited || fundFullInput.dataset.userEdited === 'false')) {
+    fundFullInput.value = totalIncome;
+  }
+  const siFullBase = parseFloat(siFullInput?.value) || 0;
   const siMinBase  = parseFloat(document.getElementById('ex-input-si-min').value) || 0;
   const fundFullBase = parseFloat(document.getElementById('ex-input-fund-full').value) || 0;
   const fundMinBase  = parseFloat(document.getElementById('ex-input-fund-min').value) || 0;
@@ -2365,12 +2735,16 @@ function toggleExDetail() {
 
 // Attach event listeners to example card inputs
 function initShanghaiExampleListeners() {
-  var inputIds = ['ex-input-salary','ex-input-si-full','ex-input-si-min','ex-input-fund-full','ex-input-fund-min'];
+  var inputIds = ['ex-input-salary','ex-input-bonus','ex-input-allowance','ex-input-subsidy','ex-input-other','ex-input-si-full','ex-input-si-min','ex-input-fund-full','ex-input-fund-min'];
   inputIds.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', renderShanghaiExample);
       el.addEventListener('change', renderShanghaiExample);
+      // Mark full base inputs as user-edited when changed
+      if (id === 'ex-input-si-full' || id === 'ex-input-fund-full') {
+        el.addEventListener('input', function() { el.dataset.userEdited = 'true'; });
+      }
     }
   });
 }
@@ -2446,12 +2820,38 @@ document.getElementById('cr-upper').addEventListener('change', () => { readCusto
 document.getElementById('copy-city-rates-btn').addEventListener('click', copyPresetCityRates);
 
 // ============================================================
+// BASE RULE MANAGEMENT
+// ============================================================
+function restoreBaseRuleUI() {
+  const empTypeEl = document.getElementById('emp-type-select');
+  if (empTypeEl) empTypeEl.value = state.employeeType || 'normal';
+  toggleEmployeeType();
+  const newHireRadio = document.querySelector(`input[name="new-hire-base"][value="${state.newHireBaseSource}"]`);
+  if (newHireRadio) newHireRadio.checked = true;
+  const transferRadio = document.querySelector(`input[name="transfer-base"][value="${state.transferBaseSource}"]`);
+  if (transferRadio) transferRadio.checked = true;
+  const siRuleEl = document.getElementById('si-base-rule');
+  if (siRuleEl) siRuleEl.value = state.siBaseRule || 'auto';
+  const fundRuleEl = document.getElementById('fund-base-rule');
+  if (fundRuleEl) fundRuleEl.value = state.fundBaseRule || 'auto';
+}
+
+function toggleEmployeeType() {
+  const empType = document.getElementById('emp-type-select')?.value || 'normal';
+  const newHireSection = document.getElementById('new-hire-options');
+  const transferSection = document.getElementById('transfer-options');
+  if (newHireSection) newHireSection.style.display = (empType === 'new_hire') ? '' : 'none';
+  if (transferSection) transferSection.style.display = (empType === 'transferred_in') ? '' : 'none';
+}
+
+// ============================================================
 // EVENT LISTENERS & INITIALIZATION
 // ============================================================
 
 // --- Initialization (MUST run first, before any user/event interactions) ---
 loadState();
 restoreUI();
+updateCityRuleTexts();   // 确保首次加载后城市相关提示文本与 state.city 同步
 renderShanghaiExample();
 initShanghaiExampleListeners();
 
@@ -2493,6 +2893,7 @@ document.getElementById('city-select').addEventListener('change', () => {
   }
   state.city = val;
   updateCityTip();
+  updateCityRuleTexts();
   toggleCustomPanel();
   saveState();
 });
